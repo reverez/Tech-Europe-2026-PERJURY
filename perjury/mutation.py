@@ -176,6 +176,18 @@ def _materialize_exact_manifest(
         target.write_bytes(data)
 
 
+def materialize_baseline_workspace(spec: WorkspaceSpec, baseline: BaselineResult) -> Path:
+    """Copy the exact baseline snapshot into a fresh isolated directory (caller cleans up)."""
+    _assert_baseline_identity(spec, baseline)
+    isolated_root = Path(tempfile.mkdtemp(prefix=f"perjury-{spec.workspace_id}-base-")).resolve()
+    try:
+        _materialize_exact_manifest(spec, baseline.manifest, isolated_root)
+    except Exception:
+        shutil.rmtree(isolated_root, ignore_errors=True)
+        raise
+    return isolated_root
+
+
 def _unified_diff(target_path: str, original: str, mutated: str) -> str:
     return "".join(
         difflib.unified_diff(

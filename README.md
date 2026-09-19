@@ -100,6 +100,8 @@ perjury/
   execution.py       first-pass mutation execution + score (#11)
   canonical.py       canonical refund mutation batch
   analysis.py        survivor analysis + hardening-target selection (#12)
+  candidate.py       safe generated-test materialization + preflight (#13)
+  hardening.py      two-world candidate verification (#14)
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/

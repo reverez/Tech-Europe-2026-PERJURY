@@ -434,6 +434,14 @@ class VerificationEvidence(BaseModel):
     mutant_stdout: str = ""
     original_duration_ms: int = Field(ge=0)
     mutant_duration_ms: int = Field(ge=0)
+    # Identities needed to audit that both worlds were comparable (populated by #14).
+    base_manifest_sha256: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    candidate_path: str | None = None
+    candidate_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    original_manifest_sha256: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    mutant_manifest_sha256: str | None = Field(default=None, pattern=r"^sha256:[0-9a-f]{64}$")
+    mutated_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
+    pytest_argv: tuple[str, ...] | None = None
 
     @model_validator(mode="after")
     def outcomes_must_match_known_pytest_exits(self) -> VerificationEvidence:
