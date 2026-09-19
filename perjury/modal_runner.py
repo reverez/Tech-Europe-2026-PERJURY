@@ -62,10 +62,14 @@ def classify_pytest_exit_code(code: int) -> ExecutionOutcome:
 
 
 def _remote_path(workspace: str, relative_path: str) -> str:
+    root = PurePosixPath(workspace)
+    if root != PurePosixPath("/workspace"):
+        raise ValueError("MVP sandbox workspace must be exactly '/workspace'.")
+
     path = PurePosixPath(relative_path)
-    if path.is_absolute() or ".." in path.parts:
+    if str(path) in {"", "."} or path.is_absolute() or ".." in path.parts:
         raise ValueError(f"workspace file must be a safe relative path: {relative_path!r}")
-    return str(PurePosixPath(workspace) / path)
+    return str(root / path)
 
 
 def execute_pytest(spec: RunSpec) -> ExecutionResult:
@@ -84,6 +88,20 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
             duration_ms=0,
         )
 
+    try:
+        materialized_files = [
+            (contents, _remote_path(spec.workspace, relative_path))
+            for relative_path, contents in spec.workspace_files.items()
+        ]
+    except ValueError as exc:
+        return ExecutionResult(
+            mutation_id=spec.mutation_id,
+            outcome=ExecutionOutcome.INVALID,
+            exit_code=None,
+            stderr=str(exc),
+            duration_ms=int((time.perf_counter() - started) * 1000),
+        )
+
     sandbox = None
     outcome = ExecutionOutcome.INFRA_ERROR
     exit_code = None
@@ -98,11 +116,8 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
             block_network=True,
         )
 
-        for relative_path, contents in spec.workspace_files.items():
-            sandbox.filesystem.write_text(
-                contents,
-                _remote_path(spec.workspace, relative_path),
-            )
+        for contents, remote_path in materialized_files:
+            sandbox.filesystem.write_text(contents, remote_path)
 
         process = sandbox.exec(
             *spec.command,
