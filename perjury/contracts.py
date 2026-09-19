@@ -58,7 +58,7 @@ class MutationBatch(BaseModel):
 
 
 class ExecutionResult(BaseModel):
-    mutation_id: str
+    execution_id: str
     outcome: ExecutionOutcome
     exit_code: int | None = None
     stdout: str = ""
@@ -67,8 +67,8 @@ class ExecutionResult(BaseModel):
     cleanup_error: str | None = None
 
     @property
-    def status(self) -> MutationStatus:
-        """Mutation-testing projection retained for UI/demo compatibility."""
+    def mutation_status(self) -> MutationStatus:
+        """Project generic execution outcome into mutation-testing terminology."""
         return mutation_status_for(self.outcome)
 
     @model_validator(mode="after")
