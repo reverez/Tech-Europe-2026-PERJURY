@@ -3,164 +3,208 @@
 **Hackathon date:** 19 September 2026  
 **Scope:** Python + pytest, Gemini/PydanticAI, Modal Sandboxes, FastAPI, one reliable refund-policy demo.
 
-This plan turns the existing scaffold into four implementation milestones. The large original issues (#1–#3) remain parent epics; the new issues are executable development units.
+This plan is the dependency map for the implementation issues. Parent epics describe milestone outcomes; child issues are mergeable units.
 
-## Status at audit
+## Current scaffold
 
-Already present:
-- typed mutation/analysis/test/verification contracts;
+Present today:
+- mutation/analysis/test/verification contracts;
 - Gemini/PydanticAI agent definitions;
 - minimal Modal Sandbox primitive;
-- deterministic verification function;
+- deterministic verifier scaffold;
 - FastAPI health/root endpoints;
 - refund demo fixture;
-- basic contract and verification tests;
-- Modal and Gemini smoke scripts.
+- basic tests;
+- deterministic bootstrap/check script and GitHub CI;
+- Gemini and Modal smoke scripts;
+- architecture/workflow/test/risk/demo documentation.
 
-Not yet connected:
-- real repository/workspace materialization;
-- deterministic mutation application;
-- bounded production fan-out;
-- safe execution-status semantics;
-- repository context packing;
-- complete agent orchestration;
-- generated-test materialization;
-- real two-world verification execution;
-- run API/event stream;
-- demo UI;
-- observability/evidence bundle;
-- CI/reproducibility hardening.
+Important known gaps remain intentionally tracked as issues. The code should not be described as the completed product until the milestone gates are green.
 
-## Milestone M0 — Execution foundation
+## M0 — Deterministic execution foundation
 
-**Parent:** #1 — P0: prove Modal sandbox fan-out
+**Parent:** #1
 
-Issues:
-- #4 — baseline runner and workspace contract
-- #5 — deterministic mutation applicator
-- #6 — runnable project workspaces in Modal
-- #7 — bounded concurrent fan-out
-- #8 — execution taxonomy and verification semantics
+Issues, in required order:
 
-### Exit gate
+1. **#22** — deterministic local + CI quality gate
+2. **#4** — WorkspaceSpec and baseline runner
+3. **#8** — semantic execution taxonomy and verdict semantics
+4. **#5** — deterministic safe mutation applicator
+5. **#6** — real workspace materialization in Modal
+6. **#7** — bounded concurrent mutation fan-out
 
-M0 is complete only when the refund fixture runs through the same Modal execution boundary intended for mutants, 10 jobs can fan out and clean up reliably, and invalid/infra executions cannot masquerade as mutation kills or verified tests.
+#4 and #8 should be coordinated because the baseline result consumes the semantic execution contract.
 
-### Critical note
+### M0 exit gate
 
-#8 is a correctness blocker. The current scaffold checks `mutant_exit_code != 0`; that is too weak because infrastructure or collection failures are also non-zero.
+M0 is complete only when:
+- deterministic checks are green without external credentials;
+- refund baseline runs through the production execution contract;
+- Modal executes the real copied workspace;
+- 10 bounded trials can complete with cleanup;
+- every result has a semantic execution outcome;
+- collection/bootstrap/provider errors cannot masquerade as kills or verification evidence.
+
+Do not make UI implementation the critical path before this gate.
 
 ---
 
-## Milestone M1 — Closed autonomous hardening loop
+## M1 — Closed autonomous hardening loop
 
-**Parent:** #2 — P1: close mutation → hardening loop
+**Parent:** #2
 
 Issues:
-- #9 — source/test context packer
-- #10 — mutation planning, validation, deduplication
-- #11 — mutation execution/classification
-- #12 — survivor analysis/selection
-- #13 — safe generated-test materialization
-- #14 — deterministic original-vs-mutant verification
-- #15 — complete orchestration service
-- #16 — deterministic end-to-end integration test
+1. **#9** — source/test context packer
+2. **#10** — mutation planning, validation, and deduplication
+3. **#11** — apply/execute mutations and compute valid score
+4. **#12** — survivor selection and analysis
+5. **#13** — safe generated-test materialization
+6. **#14** — deterministic original-vs-mutant execution
+7. **#15** — typed run state machine + complete orchestrator
+8. **#16** — deterministic end-to-end refund integration test
 
-### Exit gate
+#9 may begin late in M0 after WorkspaceSpec stabilizes. Downstream M1 work must consume the merged M0 execution semantics rather than reimplementing them.
+
+### M1 exit gate
 
 One callable core pipeline must:
 1. prove a green baseline;
 2. obtain a validated mutation batch;
-3. execute at least 6 mutations through Modal;
-4. retain killed/survived/invalid/timeout evidence;
-5. select a real survivor;
+3. execute at least 6 valid mutation trials through Modal in the live path;
+4. preserve killed/survived plus invalid/error evidence;
+5. select a real meaningful survivor;
 6. obtain a targeted test proposal;
-7. execute the test against original and mutant;
-8. return a typed verified/rejected/inconclusive hardening result.
-
-The deterministic CI path should mock model outputs; a separate smoke path can exercise live Gemini/Modal.
+7. materialize it safely;
+8. execute it against original and mutant;
+9. return a typed verified/rejected/inconclusive result;
+10. pass a deterministic mocked-agent E2E test in CI.
 
 ---
 
-## Milestone M2 — Live demo and observability
+## M2 — Live demo and observability
 
-**Parent:** #3 — P2: two-minute live demo surface
+**Parent:** #3
 
 Issues:
-- #17 — typed run API and event stream
-- #18 — single-screen demo surface
-- #19 — structured observability/evidence bundle
-- #20 — preflight and sub-two-minute rehearsal
+- **#17** — typed run API + SSE event stream
+- **#18** — single-screen demo surface
+- **#19** — structured observability/evidence bundle
+- **#20** — external preflight + sub-two-minute rehearsal
 
-### Exit gate
+Dependencies:
+- #17 requires the run/event contracts from #15.
+- #19 requires #15 and can proceed in parallel with #17.
+- #18 requires stable API/event shapes from #17.
+- #20 requires #17, #18, and #19.
 
-A judge can click one primary CTA and see the real pipeline progress from green baseline through mutation fan-out to a selected survivor, generated regression test, and two-sided proof in under two minutes.
+### M2 exit gate
 
-The UI must never use canned success JSON in place of execution.
+A judge can start one real run and observe the pipeline from baseline to deterministic proof in under two minutes after successful preflight. The UI clearly separates model proposals from executed facts. No fabricated success data is used.
 
 ---
 
-## Milestone M3 — Submission hardening
+## M3 — Submission validation and evidence freeze
 
-**Parent:** #21 — P3: submission hardening and judging evidence
+**Parent:** #21
 
 Issues:
-- #22 — CI quality gates
-- #23 — architecture/setup/demo/judging documentation
+- **#24** — fresh-clone/live-service/full-demo validation and frozen commit evidence
+- **#23** — final documentation sign-off against that frozen revision
 
-### Exit gate
+### M3 exit gate
 
-Fresh-clone setup works, deterministic quality gates are green, the demo runbook is reproducible, evidence can be inspected, and the README makes the partner technologies and correctness invariant immediately understandable.
+- fresh clone reaches green deterministic checks;
+- configured Gemini model smoke passes;
+- Modal preflight passes;
+- real full demo completes;
+- evidence records run ID and commit SHA;
+- the validated demo commit is frozen;
+- README/runbook/architecture match that exact implementation;
+- any later code change forces re-preflight and re-rehearsal.
 
 ---
 
-## Recommended implementation order
+## Critical dependency graph
 
 ```text
-#4  baseline/workspace
-  -> #5 mutation applicator
-  -> #6 Modal workspace execution
-  -> #7 bounded fan-out
-  -> #8 execution semantics
-
-#9 context packer
-  -> #10 mutation planner
-  -> #11 mutation execution
-  -> #12 survivor analysis
-  -> #13 test materialization
-  -> #14 two-sided execution
-  -> #15 orchestrator
-  -> #16 deterministic E2E
-
-#17 API/events
-  -> #18 UI
-  -> #19 evidence/observability
-  -> #20 preflight/rehearsal
-
-#22 CI
-  -> #23 final docs/evidence
+#22
+  ↓
+#4 ─────→ #9
+ ↓         ↓
+#8       #10
+ ↓         ↓
+#5       #11
+ ↓         ↓
+#6       #12
+ ↓         ↓
+#7       #13
+           ↓
+          #14
+           ↓
+          #15 ─────→ #19
+           ↓           │
+          #16          │
+           │           │
+           └──→ #17 ───┘
+                 ↓
+                #18
+                 │
+                 └──→ #20
+                       ↓
+                      #24
+                       ↓
+                      #23
 ```
 
-Where useful, #9 can proceed in parallel with #6–#8, and the basic UI shell in #18 can be prototyped after the event schema in #17 is fixed. Do not let UI work delay the M0/M1 correctness gates.
+#11 depends on both #7 and #10 even though the ASCII graph emphasizes the two lanes separately.
 
-## Definition of done for any issue
+## Parallel implementation lanes
 
-An issue is not complete until:
+| Lane | Work | Merge constraint |
+| --- | --- | --- |
+| Execution | #4, #8, #5, #6, #7 | serialize shared execution contracts |
+| Agent pipeline | #9–#14 | consume merged WorkspaceSpec/execution semantics |
+| Orchestration/API | #15, #17, #19 | #15 fixes run/event contract first |
+| UI | #18 | use real API/event schema only |
+| Validation/docs | #20, #24, #23 | validate exact commit being documented |
+
+See [DEVELOPMENT_WORKFLOW.md](./DEVELOPMENT_WORKFLOW.md) for branch/merge rules.
+
+## Definition of done for a child issue
+
+An issue is done only when:
 - implementation exists;
-- relevant contracts are updated;
-- tests cover the new invariant/failure path;
-- errors are typed or explicitly classified;
-- README/docs are updated when a user-visible command or architecture assumption changes;
+- relevant deterministic tests exist and pass;
+- public/serialized contract changes have validation tests;
+- errors are typed/classified;
+- no external side effect is introduced at import time;
+- documentation is updated when commands/contracts/scope changed;
+- acceptance criteria are checked against actual behavior;
 - no result is presented as executed evidence unless it came from execution.
+
+## Definition of done for a parent epic
+
+Checking every child issue is necessary but not sufficient. The parent exit gate must be exercised as an integrated path before the parent closes.
 
 ## Scope controls
 
-Do not expand the hackathon build into:
+Do not put these on the hackathon critical path:
 - multi-language mutation;
-- arbitrary package-manager support;
+- arbitrary dependency/build-system inference;
 - GitHub PR automation;
 - formal equivalent-mutant proofs;
 - persistent multi-tenant infrastructure;
 - general multi-agent orchestration.
 
-Those are post-hackathon directions, not current blockers.
+## Recursive audit rule
+
+After each parent milestone:
+1. compare code to SPEC/ARCHITECTURE/DECISIONS;
+2. compare merged behavior to every child acceptance criterion;
+3. run deterministic checks;
+4. run required milestone smoke/rehearsal;
+5. search docs/issues for stale dependencies or claims;
+6. fix upstream flaws before opening the next milestone gate.
+
+This is the same audit loop used to produce the current roadmap.
