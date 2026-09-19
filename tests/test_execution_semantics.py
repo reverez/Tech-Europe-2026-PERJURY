@@ -68,3 +68,30 @@ def test_execute_pytest_rejects_non_pytest_command_without_modal() -> None:
 
     assert result.outcome is ExecutionOutcome.INVALID
     assert result.exit_code is None
+
+
+@pytest.mark.parametrize(
+    ("workspace", "relative_path"),
+    [
+        ("/workspace", "../escape.py"),
+        ("/workspace", "/absolute.py"),
+        ("/workspace", "."),
+        ("/", "tmp/escape.py"),
+        ("/tmp", "test.py"),
+    ],
+)
+def test_invalid_workspace_path_is_rejected_before_modal(
+    workspace: str,
+    relative_path: str,
+) -> None:
+    result = execute_pytest(
+        RunSpec(
+            mutation_id="M98",
+            workspace=workspace,
+            workspace_files={relative_path: "def test_x(): assert True\n"},
+            command=("pytest", "-q"),
+        )
+    )
+
+    assert result.outcome is ExecutionOutcome.INVALID
+    assert result.exit_code is None
