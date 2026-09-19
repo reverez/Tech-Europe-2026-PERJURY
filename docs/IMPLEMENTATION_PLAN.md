@@ -183,6 +183,9 @@ An issue is done only when:
 - public/serialized contract changes have validation tests;
 - errors are typed/classified;
 - no external side effect is introduced at import time;
+- workspace/file operations cannot escape allowlists through traversal/symlinks;
+- secret/runtime paths are not blindly uploaded or serialized;
+- subprocess output is bounded where persisted/streamed;
 - documentation is updated when commands/contracts/scope changed;
 - acceptance criteria are checked against actual behavior;
 - no result is presented as executed evidence unless it came from execution.
