@@ -69,3 +69,23 @@ def test_verified_evidence_cannot_be_labelled_rejected() -> None:
             evidence=evidence,
             explanation="contradictory verdict",
         )
+
+
+def test_hardening_result_requires_matching_mutation_identity() -> None:
+    evidence = VerificationEvidence(
+        mutation_id="M01",
+        original_outcome=ExecutionOutcome.PASS,
+        mutant_outcome=ExecutionOutcome.TEST_FAIL,
+        original_exit_code=0,
+        mutant_exit_code=1,
+        original_duration_ms=10,
+        mutant_duration_ms=10,
+    )
+
+    with pytest.raises(ValidationError):
+        HardeningResult(
+            mutation_id="M02",
+            verdict="verified",
+            evidence=evidence,
+            explanation="mismatched identity",
+        )
