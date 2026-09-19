@@ -34,7 +34,7 @@ Issues, in required order:
 5. **#6** — real workspace materialization in Modal
 6. **#7** — bounded concurrent mutation fan-out
 
-#8 defines the semantic execution contract; #4 consumes it. This removes any circular contract dependency.
+#8 defines semantic outcomes; #4 defines the provider-independent WorkspaceSpec/baseline/executor contract; #6 supplies the live Modal executor. This keeps the contract/provider dependency acyclic.
 
 ### M0 exit gate
 
