@@ -18,9 +18,11 @@ CANONICAL_SNAPSHOT_EXCLUSIONS: tuple[str, ...] = (
     ".ruff_cache",
     ".tox",
     ".nox",
+    ".eggs",
     "build",
     "dist",
     "node_modules",
+    "*.egg-info",
     "*.pyc",
 )
 
@@ -320,6 +322,7 @@ class BaselineResult(BaseModel):
     workspace_id: str
     source_snapshot_id: str
     manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    post_execution_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     execution: ExecutionResult
 
     @computed_field
@@ -328,6 +331,7 @@ class BaselineResult(BaseModel):
         return (
             self.execution.outcome is ExecutionOutcome.PASS
             and self.execution.cleanup_error is None
+            and self.manifest_sha256 == self.post_execution_manifest_sha256
         )
 
     @model_validator(mode="after")
