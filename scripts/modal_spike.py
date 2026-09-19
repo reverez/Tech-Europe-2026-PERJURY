@@ -34,7 +34,7 @@ def main() -> None:
             result = future.result()
             results.append(result)
             print(
-                f"{result.mutation_id}: status={result.status} "
+                f"{result.mutation_id}: outcome={result.outcome} "
                 f"exit={result.exit_code} duration={result.duration_ms}ms"
             )
 
