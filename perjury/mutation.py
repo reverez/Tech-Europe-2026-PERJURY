@@ -6,6 +6,7 @@ import shutil
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
+from typing import Self
 
 from .contracts import (
     AppliedMutation,
@@ -51,7 +52,7 @@ class MutationWorkspace:
             shutil.rmtree(self.root, ignore_errors=True)
             self._cleaned = True
 
-    def __enter__(self) -> MutationWorkspace:
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(self, exc_type: object, exc: object, traceback: object) -> None:
