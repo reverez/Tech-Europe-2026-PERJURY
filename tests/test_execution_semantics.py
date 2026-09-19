@@ -1,6 +1,12 @@
 import pytest
 
-from perjury.contracts import ExecutionOutcome, MutationStatus, mutation_status_for
+from perjury.contracts import (
+    ExecutionOutcome,
+    ExecutionResult,
+    MutationStatus,
+    execution_outcome_for_pytest_exit,
+    mutation_status_for,
+)
 from perjury.modal_runner import (
     RunSpec,
     _is_pytest_command,
@@ -100,3 +106,44 @@ def test_invalid_workspace_path_is_rejected_before_modal(
 
     assert result.outcome is ExecutionOutcome.INVALID
     assert result.exit_code is None
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "expected"),
+    [
+        (0, ExecutionOutcome.PASS),
+        (1, ExecutionOutcome.TEST_FAIL),
+        (2, ExecutionOutcome.INVALID),
+        (3, ExecutionOutcome.INFRA_ERROR),
+        (4, ExecutionOutcome.INVALID),
+        (5, ExecutionOutcome.INVALID),
+        (127, ExecutionOutcome.INFRA_ERROR),
+    ],
+)
+def test_shared_contract_exit_mapping(
+    exit_code: int,
+    expected: ExecutionOutcome,
+) -> None:
+    assert execution_outcome_for_pytest_exit(exit_code) is expected
+
+
+@pytest.mark.parametrize(
+    ("outcome", "exit_code"),
+    [
+        (ExecutionOutcome.INVALID, 0),
+        (ExecutionOutcome.INFRA_ERROR, 1),
+        (ExecutionOutcome.PASS, None),
+        (ExecutionOutcome.TEST_FAIL, None),
+    ],
+)
+def test_execution_result_rejects_contradictory_outcome_and_exit_code(
+    outcome: ExecutionOutcome,
+    exit_code: int | None,
+) -> None:
+    with pytest.raises(ValueError):
+        ExecutionResult(
+            mutation_id="M97",
+            outcome=outcome,
+            exit_code=exit_code,
+            duration_ms=1,
+        )
