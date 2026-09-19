@@ -73,7 +73,7 @@ class HardeningResult(BaseModel):
     explanation: str
 
     @model_validator(mode="after")
-    def verdict_must_match_evidence(self) -> "HardeningResult":
+    def verdict_must_match_evidence(self) -> HardeningResult:
         if self.verdict == "verified" and not self.evidence.verified:
             raise ValueError(
                 "A hardening result cannot be verified unless the test passes "
