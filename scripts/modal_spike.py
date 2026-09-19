@@ -13,7 +13,6 @@ from time import perf_counter
 
 from perjury.modal_runner import RunSpec, execute_pytest
 
-
 COUNT = 10
 
 
