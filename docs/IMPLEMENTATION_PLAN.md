@@ -95,8 +95,8 @@ Issues:
 - **#20** — external preflight + sub-two-minute rehearsal
 
 Dependencies:
-- #17 requires the run/event contracts from #15.
-- #19 requires #15 and can proceed in parallel with #17.
+- #17 requires #16, which proves the #15 run/event contracts through the deterministic M1 E2E gate.
+- #19 may be scaffolded after #15 stabilizes contracts, but merges against the M2 gate only after #16; it can then proceed in parallel with #17.
 - #18 requires stable API/event shapes from #17.
 - #20 requires #17, #18, and #19.
 
@@ -143,8 +143,9 @@ M1 entry:
 #15 → #16
 
 M2:
-#15 → #17
-#15 → #19
+#15 → #16
+#16 → #17
+#16 → #19
 #17 → #18
 #17 + #18 + #19 → #20
 
@@ -161,7 +162,7 @@ This is intentionally redundant with issue `## Dependencies` sections: the issue
 | --- | --- | --- |
 | Execution | #8, #4, #5, #6, #7 | serialize shared execution contracts |
 | Agent pipeline | #9–#14, #25 | consume merged WorkspaceSpec/execution semantics; re-score the exact same batch |
-| Orchestration/API | #15, #17, #19 | #15 fixes run/event contract first |
+| Orchestration/API | #15, #17, #19 | #15 fixes run/event contracts; #16 proves them before M2 merge |
 | UI | #18 | use real API/event schema only |
 | Validation/docs | #20, #24, #23 | validate exact commit being documented |
 
