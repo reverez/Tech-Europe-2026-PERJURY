@@ -72,7 +72,7 @@ def test_pytest_command_detection(
 def test_execute_pytest_rejects_non_pytest_command_without_modal() -> None:
     result = execute_pytest(
         RunSpec(
-            mutation_id="M99",
+            execution_id="M99",
             command=("python", "-c", "raise SystemExit(1)"),
         )
     )
@@ -97,7 +97,7 @@ def test_invalid_workspace_path_is_rejected_before_modal(
 ) -> None:
     result = execute_pytest(
         RunSpec(
-            mutation_id="M98",
+            execution_id="M98",
             workspace=workspace,
             workspace_files={relative_path: "def test_x(): assert True\n"},
             command=("pytest", "-q"),
@@ -142,7 +142,7 @@ def test_execution_result_rejects_contradictory_outcome_and_exit_code(
 ) -> None:
     with pytest.raises(ValueError):
         ExecutionResult(
-            mutation_id="M97",
+            execution_id="M97",
             outcome=outcome,
             exit_code=exit_code,
             duration_ms=1,
@@ -150,13 +150,13 @@ def test_execution_result_rejects_contradictory_outcome_and_exit_code(
 
 
 def test_run_spec_environment_defaults_empty() -> None:
-    spec = RunSpec(mutation_id="M96")
+    spec = RunSpec(execution_id="M96")
     assert spec.env == {}
 
 
 def test_execution_result_keeps_cleanup_error_separate() -> None:
     result = ExecutionResult(
-        mutation_id="M95",
+        execution_id="M95",
         outcome=ExecutionOutcome.PASS,
         exit_code=0,
         duration_ms=1,
