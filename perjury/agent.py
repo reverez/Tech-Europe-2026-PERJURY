@@ -7,7 +7,6 @@ from pydantic_ai import Agent
 
 from .contracts import MutationBatch, SurvivorAnalysis, TestProposal
 
-
 load_dotenv()
 
 MODEL = os.getenv("PERJURY_MODEL", "google:gemini-3.8-flash")
