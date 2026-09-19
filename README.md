@@ -102,6 +102,9 @@ perjury/
   analysis.py        survivor analysis + hardening-target selection (#12)
   candidate.py       safe generated-test materialization + preflight (#13)
   hardening.py      two-world candidate verification (#14)
+  rescore.py         same-batch before/after re-score (#25)
+  generation.py      injectable test-generation boundary
+  orchestrator.py    the single typed closed-loop entrypoint (#15)
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/

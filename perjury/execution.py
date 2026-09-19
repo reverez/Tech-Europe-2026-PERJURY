@@ -18,6 +18,7 @@ from typing import Literal, Protocol
 
 from pydantic import BaseModel, Field, model_validator
 
+from .candidate import CandidatePlan, CandidateRejected, spec_with_candidate, write_candidate
 from .contracts import (
     BaselineResult,
     ExecutionOutcome,
@@ -33,7 +34,7 @@ from .mutation import (
     apply_mutation,
 )
 from .planning import MutationPlan
-from .workspace import WorkspaceError, WorkspaceExecutor
+from .workspace import WorkspaceError, WorkspaceExecutor, build_snapshot_manifest
 
 
 class MutationExecutionError(WorkspaceError):
@@ -163,11 +164,15 @@ def execute_mutation_plan(
     cancel_event: threading.Event | None = None,
     on_result: Callable[[FanoutJobResult], None] | None = None,
     fanout_runner: FanoutRunner = run_fanout,
+    candidate: CandidatePlan | None = None,
 ) -> MutationExecutionReport:
     """Run every accepted mutation once and return the reconciled first-pass report.
 
     Each mutation is applied to its own disposable copy of the same baseline snapshot. The
     result ID set must equal the accepted ID set; any mismatch raises MutationExecutionError.
+
+    With ``candidate`` (the #25 re-score), the byte-identical verified candidate is created in every
+    isolated mutant workspace and named in its pytest command; nothing else changes.
     """
     accepted = [m.id for m in plan.batch.mutations]
     if not accepted:
@@ -189,6 +194,20 @@ def execute_mutation_plan(
                 raise MutationExecutionError(
                     f"Mutation {proposal.id} no longer reproduces its planned bytes."
                 )
+            if candidate is not None:
+                try:
+                    write_candidate(workspace.root, candidate)
+                    workspace.spec = spec_with_candidate(
+                        workspace.spec,
+                        workspace.root,
+                        candidate,
+                        snapshot_id=f"rescore-{workspace.spec.snapshot_id}:{candidate.sha256[:16]}",
+                    )
+                    workspace.manifest = build_snapshot_manifest(workspace.spec)
+                except CandidateRejected as exc:
+                    workspace.cleanup()
+                    apply_failures[proposal.id] = _apply_error_result(proposal.id, str(exc))
+                    continue
             workspaces[proposal.id] = workspace
 
         jobs = [FanoutJob(mutation_id, w.spec, w.manifest) for mutation_id, w in workspaces.items()]
