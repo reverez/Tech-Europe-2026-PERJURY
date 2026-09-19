@@ -130,46 +130,36 @@ Issues:
 ## Critical dependency graph
 
 ```text
-#22
-  ↓
-#8
-  ↓
-#4 ─────→ #9
- ↓         ↓
-#5       #10
- ↓         ↓
-#5       #11
- ↓         ↓
-#6       #12
- ↓         ↓
-#7       #13
-           ↓
-          #14
-           ↓
-          #25
-           ↓
-          #15 ─────→ #19
-           ↓           │
-          #16          │
-           │           │
-           └──→ #17 ───┘
-                 ↓
-                #18
-                 │
-                 └──→ #20
-                       ↓
-                      #24
-                       ↓
-                      #23
+M0 foundation:
+#22 → #8 → #4 → #5 → #6 → #7
+
+M1 entry:
+#4 → #9
+#5 + #9 → #10
+#7 + #8 + #10 → #11
+#11 → #12 → #13 → #14
+#11 + #13 + #14 → #25
+#9 + #10 + #11 + #12 + #13 + #14 + #25 → #15
+#15 → #16
+
+M2:
+#15 → #17
+#15 → #19
+#17 → #18
+#17 + #18 + #19 → #20
+
+M3:
+#20 + #22 + #16 → #24
+#24 + #22 → #23
 ```
 
-#11 depends on both #7 and #10 even though the ASCII graph emphasizes the two lanes separately.
+This is intentionally redundant with issue `## Dependencies` sections: the issue body is authoritative for a child task, while this map makes cross-lane joins visible.
 
 ## Parallel implementation lanes
 
 | Lane | Work | Merge constraint |
 | --- | --- | --- |
-| Execution | #4, #8, #5, #6, #7 | serialize shared execution contracts |
+| Execution | #8, #4, #5, #6, #7 | serialize shared execution contracts |
 | Agent pipeline | #9–#14, #25 | consume merged WorkspaceSpec/execution semantics; re-score the exact same batch |
 | Orchestration/API | #15, #17, #19 | #15 fixes run/event contract first |
 | UI | #18 | use real API/event schema only |
