@@ -33,7 +33,7 @@ def test_verified_result_requires_two_sided_semantic_evidence() -> None:
 def test_execution_result_rejects_contradictory_pass_exit_code() -> None:
     with pytest.raises(ValidationError):
         ExecutionResult(
-            mutation_id="M01",
+            execution_id="M01",
             outcome=ExecutionOutcome.PASS,
             exit_code=1,
             duration_ms=10,
@@ -42,13 +42,13 @@ def test_execution_result_rejects_contradictory_pass_exit_code() -> None:
 
 def test_mutation_status_is_derived_from_execution_outcome() -> None:
     result = ExecutionResult(
-        mutation_id="M01",
+        execution_id="M01",
         outcome=ExecutionOutcome.TEST_FAIL,
         exit_code=1,
         duration_ms=10,
     )
 
-    assert result.status is MutationStatus.KILLED
+    assert result.mutation_status is MutationStatus.KILLED
 
 
 def test_verified_evidence_cannot_be_labelled_rejected() -> None:
