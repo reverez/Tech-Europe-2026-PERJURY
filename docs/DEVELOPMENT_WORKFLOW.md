@@ -55,8 +55,8 @@ Critical path:
 
 ```text
 #22 quality gate
-  -> #4 workspace/baseline contract
   -> #8 execution taxonomy
+  -> #4 workspace/baseline contract
   -> #5 mutation applicator
   -> #6 Modal materialization
   -> #7 fan-out
