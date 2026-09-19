@@ -44,14 +44,19 @@ Only **PASS(original)** plus **TEST_FAIL(mutant)** can verify a generated regres
 - normal repository-relative path;
 - absolute path rejection;
 - `../` traversal rejection;
+- symlink escape rejection;
+- implementation-only mutation allowlist;
+- tests/context paths forbidden as mutation targets;
+- secret/runtime directories absent from snapshot manifest;
 - missing/ambiguous snippet anchor rejection;
 - original workspace remains unchanged.
 
 ### Execution mapping
 - pytest 0/1/2/3/4/5;
 - timeout;
-- bootstrap/install failure;
-- stdout/stderr capture.
+- bootstrap/install/provider failure;
+- bounded stdout/stderr capture;
+- truncation metadata propagation.
 
 ### Mutation pipeline
 - duplicate/no-op proposal rejection;
