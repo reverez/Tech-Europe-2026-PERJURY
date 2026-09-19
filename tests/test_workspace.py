@@ -11,7 +11,10 @@ from perjury.contracts import (
     ExecutionOutcome,
     ExecutionResult,
     NetworkPolicy,
+    SnapshotFile,
+    SnapshotManifest,
     WorkspaceSpec,
+    snapshot_manifest_sha256,
 )
 from perjury.workspace import (
     BaselineNotReadyError,
@@ -349,3 +352,42 @@ def test_local_install_failure_is_infrastructure_error(tmp_path: Path) -> None:
     assert "install command failed" in (
         caught.value.result.execution.failure_detail or ""
     )
+
+
+def test_snapshot_contract_rejects_forged_manifest_hash() -> None:
+    file = SnapshotFile(
+        path="app.py",
+        size_bytes=3,
+        sha256="0" * 64,
+    )
+
+    with pytest.raises(ValidationError, match="manifest hash is inconsistent"):
+        SnapshotManifest(
+            workspace_id="unit-workspace",
+            source_snapshot_id="fixture:unit-v1",
+            manifest_sha256="sha256:" + "f" * 64,
+            files=(file,),
+            total_bytes=3,
+        )
+
+
+def test_snapshot_contract_rejects_unsafe_or_unsorted_paths() -> None:
+    with pytest.raises(ValidationError):
+        SnapshotFile(
+            path="../escape.py",
+            size_bytes=1,
+            sha256="0" * 64,
+        )
+
+    a = SnapshotFile(path="a.py", size_bytes=1, sha256="0" * 64)
+    b = SnapshotFile(path="b.py", size_bytes=1, sha256="1" * 64)
+    files = (b, a)
+
+    with pytest.raises(ValidationError, match="ordered lexicographically"):
+        SnapshotManifest(
+            workspace_id="unit-workspace",
+            source_snapshot_id="fixture:unit-v1",
+            manifest_sha256=snapshot_manifest_sha256(files),
+            files=files,
+            total_bytes=2,
+        )
