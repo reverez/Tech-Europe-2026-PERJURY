@@ -5,23 +5,14 @@
 
 This plan is the dependency map for the implementation issues. Parent epics describe milestone outcomes; child issues are mergeable units.
 
-## Current scaffold
+## Status
 
-Present today:
-- mutation/analysis/test/verification contracts;
-- provider-independent workspace/baseline execution, deterministic safe mutation application,
-  and sanitized Modal workspace execution;
-- Gemini/PydanticAI agent definitions;
-- minimal Modal Sandbox primitive;
-- deterministic verifier scaffold;
-- FastAPI health/root endpoints;
-- refund demo fixture;
-- basic tests;
-- deterministic bootstrap/check script and GitHub CI;
-- Gemini and Modal smoke scripts;
-- architecture/workflow/test/risk/demo documentation.
-
-Important known gaps remain intentionally tracked as issues. The code should not be described as the completed product until the milestone gates are green.
+All milestones (M0–M3) are delivered on `dev/integration`. The complete loop (baseline → Gemini mutation
+planning → Modal fan-out → survivor analysis → generated test → two-world verification → same-batch
+re-score → evidence) runs through `perjury/orchestrator.py` and has been validated end to end against real
+Gemini and Modal. The validated implementation SHA is `1429b6a47b0edd883807f74c631077405b2707b7`; see the
+README evidence section for the separate live and canonical results. The sections below are the historical
+dependency map the work followed.
 
 ## M0 — Deterministic execution foundation
 

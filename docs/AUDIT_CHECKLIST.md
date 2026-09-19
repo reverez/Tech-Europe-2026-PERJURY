@@ -98,7 +98,7 @@ For verification specifically:
 - [ ] Tests/context files cannot be mutated.
 - [ ] Generated candidate tests use create-new semantics.
 - [ ] Existing user files are not overwritten/appended.
-- [ ] Snapshot file-count and byte limits are enforced once #4 lands.
+- [ ] Snapshot file-count and byte limits are enforced (`max_snapshot_files`, `max_snapshot_bytes`).
 - [ ] Candidate/snapshot identity is recorded in evidence.
 
 ## G. Resource and output audit
@@ -106,7 +106,7 @@ For verification specifically:
 - [ ] Per-command timeout is bounded.
 - [ ] Mutation concurrency is bounded.
 - [ ] Agent retries are bounded.
-- [ ] stdout/stderr capture is bounded once #4 lands.
+- [ ] stdout/stderr capture is bounded (`max_output_bytes`).
 - [ ] Truncation is explicit in evidence.
 - [ ] Invalid/timeouts/infra failures are excluded from mutation-score denominator.
 - [ ] Exact before/after score uses the same mutation batch and actual reruns.

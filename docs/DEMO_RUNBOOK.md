@@ -41,11 +41,16 @@ HEAD — do not present a `-dirty` run as the frozen commit) and the evidence bu
 
 Do not begin the live presentation with a failing preflight.
 
-Measured results (two different runs over two different mutation batches; never merge them):
+Validated implementation SHA: **`1429b6a47b0edd883807f74c631077405b2707b7`** (later commits are documentation-only).
+Measured results, in three categories that must never be merged or presented as one batch:
 - **Canonical reproducible rehearsal** (`--mock-models`, real Modal): 5 killed / 3 survived → 0.625,
   M01 VERIFIED, same-batch re-score 6 / 2 → 0.750, ~18–21 s.
-- **Fully live Gemini + Modal** run `run-2e7df7037679` (commit 72985a0): VERIFIED in 54.067 s, live
-  same-batch re-score 0.000 → 0.125, evidence `sha256:0b29c589ff93…`, 0 leaked Sandboxes.
+- **Fully live Gemini + Modal, VERIFIED**, run `run-2e7df7037679` on the backend-identical `72985a0`:
+  54.067 s, live same-batch re-score 0.000 → 0.125, evidence `sha256:0b29c589ff93…`, 0 leaked Sandboxes.
+- **Fully live Gemini + Modal on `1429b6a`, safe rejections**: `run-b3705a55cea6` (47.655 s,
+  `sha256:3c5b32c7df26…`) and `run-5d3839cf1daa` (51.958 s, `sha256:3b127030c415…`), both
+  `rejected` / `candidate_failed_original`, 0 leaked Sandboxes. Gemini's test failed on the original code, so
+  execution refused it; if this happens on stage, say so — that is the invariant working.
 
 Launch for the judges: `python -m uvicorn perjury.api:app --port 8000` → http://127.0.0.1:8000/demo,
 then press **Run PERJURY**. The page follows the run and ends on the proof and score panels.
@@ -130,7 +135,7 @@ Avoid dumping noisy raw logs unless a judge asks.
 Stop. Do not run mutation analysis against a failing baseline. Restore the frozen demo commit or fix the fixture, then repeat deterministic checks and preflight.
 
 ### Generated candidate is invalid
-Display the rejection accurately. If the orchestration implements a bounded retry policy, retry; otherwise choose another survivor/run. Never convert an invalid candidate into a verified result.
+Display the rejection accurately (`rejected`, e.g. `candidate_failed_original` or `candidate_invalid`). The orchestrator does not retry a rejected candidate, so start a new run (live test generation is nondeterministic; the canonical `--mock-models` path is reproducible). Never convert an invalid candidate into a verified result.
 
 ### External service is unavailable during judging
 A previously captured evidence bundle from the real pipeline may be shown **only if explicitly labelled as a recorded prior run**, including its commit SHA/run ID. Do not present it as live execution.

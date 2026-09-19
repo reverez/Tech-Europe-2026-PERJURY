@@ -48,20 +48,28 @@ One typed entrypoint (`perjury/orchestrator.py: run_perjury`) drives every stage
 | **Modal** | isolated, network-blocked, concurrent Sandbox execution of every mutant and both verification worlds | runs code, no judgement |
 | **pytest / execution** | the final truth: PASS vs TEST_FAIL decides every verdict and score | **Yes** |
 
-## Evidence: two separate results
+## Evidence: three separate categories
 
-These are two **different** runs over **different** mutation batches. Do not combine them.
+**Validated implementation SHA: `1429b6a47b0edd883807f74c631077405b2707b7`** (`dev/integration`). Every commit after it changes documentation only; a later change to executable code would require re-running preflight and the rehearsal (see the [runbook](docs/DEMO_RUNBOOK.md), section 5). Backend logic is identical to the earlier validated `72985a0`: the changes between them are UI presentation, docs, browser-smoke and bootstrap text only.
 
-**1. Canonical reproducible rehearsal.** Fixed 8-mutant refund batch, mocked model boundaries, **real Modal execution**:
+The categories below are **different runs over different mutation batches**. Do not combine or compare their numbers.
+
+**1. Canonical reproducible rehearsal** (fixed 8-mutant refund batch, mocked model boundaries, **real Modal execution**):
 - first pass 5 killed / 3 survived / 0 excluded → **0.625**
 - M01 (`or premium` removed) selected; candidate PASS on original, TEST_FAIL on mutant → VERIFIED
 - same-batch re-score 6 killed / 2 survived → **0.750** (+12.5 pts)
 - ~18–21 s end to end; reproduce with `python scripts/closed_loop_smoke.py --mock-models`
 
-**2. Fully live Gemini + Modal run.** Gemini proposed its own batch in this run:
-- run `run-2e7df7037679`, commit `72985a0`, **VERIFIED** in **54.067 s**
+**2. Fully live Gemini + Modal, VERIFIED** (Gemini proposed its own batch; run on `72985a0`, backend-identical to the validated SHA):
+- run `run-2e7df7037679`, **VERIFIED** in **54.067 s**
 - same-batch live re-score **0.000 → 0.125**
 - evidence bundle `sha256:0b29c589ff93…` (80,838 B, complete), 0 leaked Sandboxes
+
+**3. Fully live Gemini + Modal on the validated SHA `1429b6a`, safe rejections.** Two further live runs ended **rejected / `candidate_failed_original`** with 0 leaked Sandboxes: Gemini's generated test failed on the *original* code, so the deterministic judge refused it and no improvement was claimed. This is the invariant working, not a defect:
+- `run-b3705a55cea6`, 47.655 s, evidence `sha256:3c5b32c7df26…`
+- `run-5d3839cf1daa`, 51.958 s, evidence `sha256:3b127030c415…`
+
+Live test generation is nondeterministic: of these three live runs, one verified and two were correctly rejected. The reproducible path is category 1.
 
 ## Setup (one canonical path)
 
@@ -142,7 +150,17 @@ docs/                spec, architecture, decisions, runbook, API/UI contracts
 
 ## Documentation
 
-[Specification](docs/SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Demo runbook](docs/DEMO_RUNBOOK.md) · [API contract](docs/API_CONTRACT.md) · [UI contract](docs/UI_CONTRACT.md) · [Test strategy](docs/TEST_STRATEGY.md) · [Risk register](docs/RISK_REGISTER.md) · [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
+1. [Specification](docs/SPEC.md)
+2. [Architecture](docs/ARCHITECTURE.md)
+3. [Architecture decisions](docs/DECISIONS.md)
+4. [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
+5. [Development workflow](docs/DEVELOPMENT_WORKFLOW.md)
+6. [Test strategy](docs/TEST_STRATEGY.md)
+7. [Risk register](docs/RISK_REGISTER.md)
+8. [Demo runbook](docs/DEMO_RUNBOOK.md)
+9. [Recursive audit checklist](docs/AUDIT_CHECKLIST.md)
+
+Interface contracts: [API](docs/API_CONTRACT.md) · [UI](docs/UI_CONTRACT.md)
 
 ---
 
