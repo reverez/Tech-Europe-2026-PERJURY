@@ -97,6 +97,8 @@ perjury/
   fanout.py          bounded concurrent mutation fan-out
   context.py         deterministic Gemini source/test context packer
   planning.py        mutation planning/validation/replenishment
+  execution.py       first-pass mutation execution + score (#11)
+  canonical.py       canonical refund mutation batch
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/
