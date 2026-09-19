@@ -61,8 +61,9 @@ Issues:
 4. **#12** — survivor selection and analysis
 5. **#13** — safe generated-test materialization
 6. **#14** — deterministic original-vs-mutant execution
-7. **#15** — typed run state machine + complete orchestrator
-8. **#16** — deterministic end-to-end refund integration test
+7. **#25** — re-score the same mutation batch after verified hardening
+8. **#15** — typed run state machine + complete orchestrator
+9. **#16** — deterministic end-to-end refund integration test
 
 #9 may begin late in M0 after WorkspaceSpec stabilizes. Downstream M1 work must consume the merged M0 execution semantics rather than reimplementing them.
 
@@ -78,7 +79,8 @@ One callable core pipeline must:
 7. materialize it safely;
 8. execute it against original and mutant;
 9. return a typed verified/rejected/inconclusive result;
-10. pass a deterministic mocked-agent E2E test in CI.
+10. re-run the same validated mutation batch after a verified candidate and compute the post-hardening score;
+11. pass a deterministic mocked-agent E2E test in CI.
 
 ---
 
@@ -142,6 +144,8 @@ Issues:
            ↓
           #14
            ↓
+          #25
+           ↓
           #15 ─────→ #19
            ↓           │
           #16          │
@@ -164,7 +168,7 @@ Issues:
 | Lane | Work | Merge constraint |
 | --- | --- | --- |
 | Execution | #4, #8, #5, #6, #7 | serialize shared execution contracts |
-| Agent pipeline | #9–#14 | consume merged WorkspaceSpec/execution semantics |
+| Agent pipeline | #9–#14, #25 | consume merged WorkspaceSpec/execution semantics; re-score the exact same batch |
 | Orchestration/API | #15, #17, #19 | #15 fixes run/event contract first |
 | UI | #18 | use real API/event schema only |
 | Validation/docs | #20, #24, #23 | validate exact commit being documented |
