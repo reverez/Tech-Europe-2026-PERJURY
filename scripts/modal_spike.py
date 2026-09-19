@@ -19,7 +19,7 @@ COUNT = 10
 def main() -> None:
     specs = [
         RunSpec(
-            mutation_id=f"M{i:02d}",
+            execution_id=f"M{i:02d}",
             workspace_files={
                 "test_smoke.py": "def test_modal_smoke() -> None:\n    assert True\n",
             },
@@ -37,7 +37,7 @@ def main() -> None:
             result = future.result()
             results.append(result)
             print(
-                f"{result.mutation_id}: outcome={result.outcome} "
+                f"{result.execution_id}: outcome={result.outcome} "
                 f"exit={result.exit_code} duration={result.duration_ms}ms"
             )
 
