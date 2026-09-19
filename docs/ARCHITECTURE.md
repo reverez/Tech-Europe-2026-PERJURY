@@ -1,6 +1,11 @@
-# PERJURY — Target Architecture
+# PERJURY — Architecture
 
-This document describes the target architecture for the hackathon build. It is intentionally narrower than a production mutation-testing platform: Python + pytest, one configured workspace at a time, 6–10 semantic mutations, Modal isolation, Gemini/PydanticAI proposal stages, and deterministic verification.
+**Status: implemented and validated.** Every stage below runs through one typed entrypoint,
+`perjury/orchestrator.py: run_perjury`, and has been exercised end to end against real Gemini and real
+Modal (run `run-2e7df7037679`, VERIFIED in 54.1 s) as well as in the deterministic suite. Principle:
+**the model proposes, execution proves.**
+
+This document describes the architecture of the hackathon build. It is intentionally narrower than a production mutation-testing platform: Python + pytest, one configured workspace at a time, 6–10 semantic mutations, Modal isolation, Gemini/PydanticAI proposal stages, and deterministic verification.
 
 ## 1. Architectural principle
 
@@ -75,10 +80,25 @@ Modal bounded fan-out
                             Evidence/events -> API -> UI
 ```
 
+### Where each partner technology sits
+
+| Layer | Responsibility | Decides correctness? |
+| --- | --- | --- |
+| Gemini (`perjury/agent.py`, lazily constructed; `PERJURY_MODEL`) | mutation proposals, survivor analysis, test generation | no |
+| Pydantic / PydanticAI (`contracts.py`, `planning.py`, `analysis.py`, `generation.py`) | typed probabilistic → deterministic boundaries; every model output is re-validated before it can touch execution | shape only |
+| Modal (`modal_runner.py`) | one isolated, network-blocked Sandbox per mutant/world; the sanitized snapshot is uploaded as one archive and verified (size + sha256 + exact file set) inside the Sandbox before pytest runs | no |
+| pytest / `verification.py` | PASS vs TEST_FAIL → verdict and killed/survived → score | **yes** |
+
+### Performance of the judge path
+
+Profiling showed each Sandbox spent ~41–45 s on ~90 sequential per-file uploads. Uploading one verified
+archive per Sandbox brought the mocked-model live-Modal loop from ~126 s to ~18–21 s with no change to any
+correctness invariant; the fully live Gemini + Modal loop completed in 54.1 s.
+
 ## 3. Core contracts
 
 ### WorkspaceSpec
-Target shape for #4:
+Shape (#4):
 - run/workspace identity;
 - immutable source root/snapshot;
 - Python/runtime assumption;
@@ -245,7 +265,7 @@ See:
 - [TEST_STRATEGY.md](./TEST_STRATEGY.md)
 - [IMPLEMENTATION_PLAN.md](./IMPLEMENTATION_PLAN.md)
 
-## 12. Implementation map
+## 12. Implementation map (all delivered)
 
 - **M0 / P0 — deterministic execution foundation:** #1, #22, #4–#8
 - **M1 / P1 — closed autonomous loop:** #2, #9–#14, #25, #15–#16

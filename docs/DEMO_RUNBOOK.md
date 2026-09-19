@@ -1,6 +1,7 @@
 # PERJURY — Demo Runbook
 
-This is the operational script for preflight, rehearsal, and the live judge demo. Commands may evolve as #20 is implemented; when they do, update this file and README together.
+This is the operational script for preflight, rehearsal, and the live judge demo. Commands assume the
+bootstrap virtualenv is active (`source .venv/bin/activate`); keep this file and the README in step.
 
 ## 1. Before the demo
 
@@ -16,7 +17,7 @@ Run the required preflight entrypoint (about 10 s once the Modal image is warm; 
 Modal image change can take minutes while the image builds, which is exactly why you run it early):
 
 ```bash
-PYTHONPATH=. python scripts/preflight.py        # exit code 0 only when every check passes
+python scripts/preflight.py        # exit code 0 only when every check passes
 ```
 
 It checks, grouped by subsystem: **config** (Python 3.12, `GOOGLE_API_KEY`, `PERJURY_MODEL`,
@@ -30,8 +31,8 @@ failures). A failed preflight blocks the claim that the live demo is ready.
 Then rehearse the full judge path once (uses the real Gemini + Modal; saves the evidence bundle):
 
 ```bash
-PYTHONPATH=. python scripts/closed_loop_smoke.py                 # fails if > 110 s or not VERIFIED
-PYTHONPATH=. python scripts/closed_loop_smoke.py --mock-models   # same path, canned model outputs, live Modal
+python scripts/closed_loop_smoke.py                 # fails if > 110 s or not VERIFIED
+python scripts/closed_loop_smoke.py --mock-models   # same path, canned model outputs, live Modal
 ```
 
 It prints the phase timings, `run_id`, the commit SHA (suffixed `-dirty` if tracked files differ from
@@ -40,8 +41,14 @@ HEAD — do not present a `-dirty` run as the frozen commit) and the evidence bu
 
 Do not begin the live presentation with a failing preflight.
 
-Measured judge path with mocked models on live Modal: ~18 s end to end (was ~126 s before the snapshot
-upload was batched); Gemini latency (planner, analyzer, generator) is additional.
+Measured results (two different runs over two different mutation batches; never merge them):
+- **Canonical reproducible rehearsal** (`--mock-models`, real Modal): 5 killed / 3 survived → 0.625,
+  M01 VERIFIED, same-batch re-score 6 / 2 → 0.750, ~18–21 s.
+- **Fully live Gemini + Modal** run `run-2e7df7037679` (commit 72985a0): VERIFIED in 54.067 s, live
+  same-batch re-score 0.000 → 0.125, evidence `sha256:0b29c589ff93…`, 0 leaked Sandboxes.
+
+Launch for the judges: `python -m uvicorn perjury.api:app --port 8000` → http://127.0.0.1:8000/demo,
+then press **Run PERJURY**. The page follows the run and ends on the proof and score panels.
 
 ## 2. Intended two-minute narrative
 

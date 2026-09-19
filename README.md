@@ -2,195 +2,147 @@
 
 > **Your CI is green. PERJURY finds what your tests never proved.**
 
-PERJURY is an autonomous adversarial test-hardening agent built for the **{Tech: Europe} Agentic AI Hack — London, 19 September 2026**.
+**Autonomous adversarial test hardening.** Built for the **{Tech: Europe} Agentic AI Hack — London, 19 September 2026**.
 
-It proposes semantically meaningful mutations, executes them against the real pytest suite in isolated Modal Sandboxes, identifies surviving mutants, asks Gemini for a targeted regression test, and accepts that candidate only after deterministic two-sided execution.
+PERJURY attacks a green pytest suite with semantically meaningful mutations, runs every mutant against the real suite in isolated Modal Sandboxes, picks a mutant the tests failed to catch, has Gemini write a targeted regression test, and accepts that test **only** after deterministic two-world execution proves it. It then re-runs the *same* mutation batch with the new test to report a defensible before/after mutation score.
+
+**The model proposes. Execution proves.**
 
 ## Correctness invariant
 
-A generated test is **verified** only when:
+A generated test is **VERIFIED** only when:
 
 ```text
 original + generated test  => PASS
 mutant   + generated test  => TEST_FAIL
 ```
 
-`TEST_FAIL` means pytest ran normally and a test failed. Collection errors, command errors, timeouts, dependency failures, and infrastructure failures never count as proof.
+`TEST_FAIL` means pytest ran normally and a test failed. Collection errors, command errors, timeouts, dependency failures and infrastructure failures never count as proof. The score is computed from killed + survived outcomes only; invalid/timeout/infra outcomes stay visible but are excluded, and a score with no valid outcome is reported as unavailable, never 0%.
 
-The LLM proposes; execution decides.
-
-## Why the partner technologies are load-bearing
-
-- **Google Gemini** — proposes semantic mutations, explains surviving behavior, and proposes targeted tests.
-- **Pydantic + PydanticAI** — validate every model-to-execution contract.
-- **Modal** — provides isolated concurrent execution for mutation trials.
-
-Gemini 3.8 Flash is the default configured model through `PERJURY_MODEL`; scripts use the same setting rather than maintaining a separate model choice.
-
-## MVP support contract
-
-The hackathon MVP intentionally supports a narrow, reproducible target:
-
-- Python 3.12.x;
-- pytest;
-- one repository/workspace snapshot per run;
-- an explicit structured install command when needed;
-- an explicit structured pytest command;
-- roughly 6–10 semantic mutations;
-- the bundled refund-policy fixture as the canonical first demo.
-
-**Not promised for the hackathon:** arbitrary dependency discovery, multi-language mutation, GitHub PR automation, databases/services required by arbitrary target repos, formal equivalent-mutant proofs, or general multi-agent orchestration.
-
-Unsupported repository layouts should fail clearly rather than being guessed.
-
-## Core loop
+## How it works
 
 ```text
-green baseline
-     ↓
-Gemini proposes semantic mutations
-     ↓
-Pydantic validation + safe mutation preflight
-     ↓
-Modal bounded fan-out
-     ↓
-killed / survived / invalid / timeout / infrastructure error
-     ↓
-select meaningful survivor
-     ↓
-Gemini analysis + pytest proposal
-     ↓
-safe candidate materialization
-     ↓
-original + candidate  => PASS
-mutant   + candidate  => TEST_FAIL
-     ↓
-deterministic verified hardening result
-     ↓
-rerun the same mutation batch with the verified test
-     ↓
-defensible before/after mutation score
+green baseline (pytest PASS on the real suite)
+  → Gemini proposes 6–10 semantic mutations        (MODEL, validated by Pydantic)
+  → safe exact-anchor application + compile check   (deterministic)
+  → Modal bounded fan-out, one Sandbox per mutant   (FACT: killed / survived / invalid / timeout / infra)
+  → survivor selection + Gemini analysis            (MODEL: "potential test gap", never "bug")
+  → Gemini writes one pytest candidate              (MODEL)
+  → safe create-new materialization + collection    (deterministic)
+  → two worlds from the same snapshot:
+        original + candidate => PASS
+        mutant   + candidate => TEST_FAIL           (FACT)
+  → VERIFIED
+  → same validated batch re-run with the candidate  (FACT) → before/after score (DERIVED)
+  → sanitized evidence bundle .perjury/runs/<run_id>/evidence.json
 ```
 
-## Current implementation status
+One typed entrypoint (`perjury/orchestrator.py: run_perjury`) drives every stage with monotonic, correlated events. A same-origin FastAPI API streams them over SSE to a zero-build dashboard at `/demo`.
 
-The repository currently contains the protocol scaffold, Gemini/PydanticAI agents, a minimal Modal primitive, FastAPI skeleton, refund fixture, smoke scripts, tests, CI, and the full implementation roadmap.
+### Partner technologies, and what each one is trusted with
 
-The production loop is **not yet complete**. The semantic execution foundation (**#8**), provider-independent WorkspaceSpec/baseline layer (**#4**), and deterministic safe mutation applicator (**#5**) are implemented. The sanitized Modal workspace executor (**#6**, live local-vs-Modal parity proven) and bounded concurrent mutation fan-out (**#7**, `perjury/fanout.py`, live 10-Sandbox gate via `scripts/modal_spike.py`) are implemented.
+| Technology | Role | Trusted to decide? |
+| --- | --- | --- |
+| **Google Gemini** (`PERJURY_MODEL`, default `google:gemini-3.8-flash`) | semantic mutation proposals, survivor analysis, regression-test generation | **No**, proposals only |
+| **Pydantic / PydanticAI** | typed boundaries that turn probabilistic model output into validated, deterministic contracts | validates shape, not truth |
+| **Modal** | isolated, network-blocked, concurrent Sandbox execution of every mutant and both verification worlds | runs code, no judgement |
+| **pytest / execution** | the final truth: PASS vs TEST_FAIL decides every verdict and score | **Yes** |
 
-Development is gated by the parent epics:
+## Evidence: two separate results
 
-- [P0 / M0 — deterministic execution foundation](../../issues/1)
-- [P1 / M1 — closed autonomous hardening loop](../../issues/2)
-- [P2 / M2 — live demo and observability](../../issues/3)
-- [P3 / M3 — submission validation and evidence freeze](../../issues/21)
+These are two **different** runs over **different** mutation batches. Do not combine them.
+
+**1. Canonical reproducible rehearsal.** Fixed 8-mutant refund batch, mocked model boundaries, **real Modal execution**:
+- first pass 5 killed / 3 survived / 0 excluded → **0.625**
+- M01 (`or premium` removed) selected; candidate PASS on original, TEST_FAIL on mutant → VERIFIED
+- same-batch re-score 6 killed / 2 survived → **0.750** (+12.5 pts)
+- ~18–21 s end to end; reproduce with `python scripts/closed_loop_smoke.py --mock-models`
+
+**2. Fully live Gemini + Modal run.** Gemini proposed its own batch in this run:
+- run `run-2e7df7037679`, commit `72985a0`, **VERIFIED** in **54.067 s**
+- same-batch live re-score **0.000 → 0.125**
+- evidence bundle `sha256:0b29c589ff93…` (80,838 B, complete), 0 leaked Sandboxes
+
+## Setup (one canonical path)
+
+Requires Python 3.12.x and git. Dependencies are pinned.
+
+```bash
+git clone https://github.com/reverez/Tech-Europe-2026-PERJURY.git
+cd Tech-Europe-2026-PERJURY
+bash scripts/bootstrap.sh        # venv + pinned install + .env from .env.example + deterministic gate
+source .venv/bin/activate
+```
+
+Bootstrap never calls external services. For the live path, add `GOOGLE_API_KEY` to `.env` and run `modal setup`.
+
+## Run it
+
+```bash
+python scripts/preflight.py                        # readiness by subsystem; exit 0 only if all pass
+python -m uvicorn perjury.api:app --port 8000      # live Gemini + Modal → http://127.0.0.1:8000/demo
+```
+
+Press **Run PERJURY**. Other entry points:
+
+```bash
+python scripts/serve_demo.py --mock-models         # rehearsal: canned model outputs, real pytest, no credentials
+python scripts/closed_loop_smoke.py                # timed live rehearsal (fails if > 110 s); saves evidence
+bash scripts/check.sh                              # deterministic gate (ruff + 463 tests), no credentials
+python scripts/browser_smoke.py                    # real-browser smoke of /demo against the real API
+```
+
+`/demo?adapter=mock` is a separate replay for UI development only. It always shows a permanent **SIMULATED** banner and is not evidence.
+
+## API
+
+| Method | Path | |
+| --- | --- | --- |
+| POST | `/api/runs` | start the run (202; typed 409 if one is active) |
+| GET | `/api/runs/{id}` | authoritative typed snapshot |
+| GET | `/api/runs/{id}/events` | ordered SSE events (resume with `Last-Event-ID` or `?after=`) |
+| GET | `/api/runs/{id}/evidence` | the sanitized evidence bundle |
+| GET | `/health` | process health |
+
+See [docs/API_CONTRACT.md](docs/API_CONTRACT.md).
+
+## Scope (hackathon MVP)
+
+Python 3.12 + pytest, one workspace snapshot per run, explicit structured install/test commands, 6–10 semantic mutations, the bundled refund-policy fixture as the canonical demo. **Not promised:** arbitrary dependency discovery, other languages, PR automation, services required by arbitrary repos, or formal equivalent-mutant proofs. A surviving mutant is always a **potential test gap**, not a confirmed bug.
 
 ## Repository layout
 
 ```text
 perjury/
+  orchestrator.py    run_perjury: the single typed closed-loop entrypoint + run state machine
   contracts.py       typed model/execution protocol
-  agent.py           Gemini/PydanticAI proposal stages
-  modal_runner.py    Modal execution boundary
-  workspace.py       WorkspaceSpec snapshot + baseline layer
+  agent.py           Gemini/PydanticAI agents (constructed lazily)
+  context.py         bounded source/test context with untrusted-content delimiting
+  planning.py        mutation planning, validation, dedup, bounded replenishment
   mutation.py        isolated exact-anchor mutation applicator
-  fanout.py          bounded concurrent mutation fan-out
-  context.py         deterministic Gemini source/test context packer
-  planning.py        mutation planning/validation/replenishment
-  execution.py       first-pass mutation execution + score (#11)
-  canonical.py       canonical refund mutation batch
-  analysis.py        survivor analysis + hardening-target selection (#12)
-  candidate.py       safe generated-test materialization + preflight (#13)
-  hardening.py      two-world candidate verification (#14)
-  rescore.py         same-batch before/after re-score (#25)
-  evidence.py        sanitized atomic evidence bundle (#19)
-  preflight.py       subsystem-grouped live-demo preflight (#20)
-  generation.py      injectable test-generation boundary
-  orchestrator.py    the single typed closed-loop entrypoint (#15)
-  verification.py    deterministic verdict logic
-  api.py             FastAPI surface
-examples/refund/
-  refund.py
-  test_refund.py
-scripts/
-  bootstrap.sh       deterministic environment bootstrap
-  check.sh           deterministic lint + test gate
-  gemini_smoke.py    live Gemini configuration smoke
-  modal_spike.py     live Modal 10-mutant fan-out gate (#7)
-tests/
-docs/
-.github/workflows/
-  ci.yml             credential-free deterministic CI
+  workspace.py       WorkspaceSpec, sanitized snapshot manifests, baseline
+  modal_runner.py    Modal Sandbox executor (single verified snapshot archive per Sandbox)
+  fanout.py          bounded concurrent fan-out
+  execution.py       first-pass execution + authoritative score
+  analysis.py        survivor analysis + hardening-target selection
+  generation.py      test-generation boundary
+  candidate.py       safe create-new candidate materialization + collection preflight
+  hardening.py       two-world verification
+  verification.py    deterministic verdict
+  rescore.py         same-batch before/after comparison
+  evidence.py        sanitized, atomic, hashed evidence bundle
+  runs.py / api.py   in-memory run registry, typed API + SSE
+  preflight.py       subsystem-grouped live readiness checks
+  ui/                zero-build dashboard (/demo): HTML/CSS/vanilla JS, no CDN
+examples/refund/     canonical fixture (premium-customer gap)
+scripts/             bootstrap, check, preflight, serve_demo, smokes
+tests/               deterministic suite (no credentials, no network)
+docs/                spec, architecture, decisions, runbook, API/UI contracts
 ```
 
 ## Documentation
 
-Read these in order when implementing:
-
-1. [Frozen hackathon specification](docs/SPEC.md)
-2. [Target architecture](docs/ARCHITECTURE.md)
-3. [Architecture decisions](docs/DECISIONS.md)
-4. [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
-5. [Development workflow](docs/DEVELOPMENT_WORKFLOW.md)
-6. [Test strategy](docs/TEST_STRATEGY.md)
-7. [Risk register](docs/RISK_REGISTER.md)
-8. [Demo runbook](docs/DEMO_RUNBOOK.md)
-9. [Recursive audit checklist](docs/AUDIT_CHECKLIST.md)
-
-## Setup
-
-Requires Python 3.12.x. Direct runtime/dev dependencies are pinned to the versions validated by deterministic CI for the hackathon build.
-
-```bash
-git clone https://github.com/reverez/Tech-Europe-2026-PERJURY.git
-cd Tech-Europe-2026-PERJURY
-bash scripts/bootstrap.sh
-```
-
-The bootstrap is deliberately deterministic: it installs the project, creates `.env` if needed, and runs local tests. It does **not** authenticate or call external services.
-
-Run the deterministic gate at any time with:
-
-```bash
-bash scripts/check.sh
-```
-
-Then configure external services separately:
-
-```bash
-# add GOOGLE_API_KEY to .env first
-python scripts/gemini_smoke.py
-
-modal setup
-python scripts/modal_workspace_smoke.py
-python scripts/modal_spike.py
-```
-
-This separation prevents provider credentials, quotas, or outages from making every development commit nondeterministic.
-
-## Run the demo UI
-
-```bash
-# Rehearsal: deterministic mock MODEL outputs, every execution is real local pytest (no credentials)
-PYTHONPATH=. python scripts/serve_demo.py --mock-models     # open http://127.0.0.1:8000/demo
-
-# Live: Gemini + Modal (needs GOOGLE_API_KEY in .env and `modal setup`)
-PYTHONPATH=. python -m uvicorn perjury.api:app --port 8000  # open http://127.0.0.1:8000/demo
-
-# Before a live demo: subsystem-grouped readiness check (exit 0 only if everything passes)
-PYTHONPATH=. python scripts/preflight.py
-
-# Real-browser smoke of the UI against the real API (mock-model orchestration)
-PYTHONPATH=. python scripts/browser_smoke.py
-```
-
-`/demo?adapter=mock` is a separate, clearly labelled SIMULATED replay for UI development only.
-
-## Demo fixture
-
-The bundled refund example intentionally lacks coverage for a premium customer outside the normal refund window. The target demonstration is for PERJURY to expose a semantic mutation affecting that behavior, propose the missing regression test, and prove the candidate through the deterministic two-sided invariant.
-
-A surviving mutant is always described as a **potential test gap**, not automatically as a production bug. Equivalent mutants remain a known limitation of mutation testing.
+[Specification](docs/SPEC.md) · [Architecture](docs/ARCHITECTURE.md) · [Decisions](docs/DECISIONS.md) · [Demo runbook](docs/DEMO_RUNBOOK.md) · [API contract](docs/API_CONTRACT.md) · [UI contract](docs/UI_CONTRACT.md) · [Test strategy](docs/TEST_STRATEGY.md) · [Risk register](docs/RISK_REGISTER.md) · [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
 
 ---
 

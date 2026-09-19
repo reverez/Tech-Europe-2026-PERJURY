@@ -146,7 +146,7 @@ async def drive(url: str, chrome: str, shot: Path) -> None:
             assert facts["picked"] == "M01" and statuses["M01"] == "survived", facts
             assert sum(v == "killed" for v in statuses.values()) == 5, facts
             assert sum(v == "survived" for v in statuses.values()) == 3, facts
-            assert facts["proof"] == ["PASS", "TEST FAIL"], facts
+            assert facts["proof"] == ["PASS", "TEST_FAIL"], facts
             assert facts["candidate"] == "examples/refund/test_perjury_M01.py", facts
             assert facts["scores"] == ["62.5%", "75%"], facts
             assert facts["delta"] == "+12.5 pts", facts

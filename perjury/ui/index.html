@@ -3,34 +3,49 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PERJURY</title>
+<meta name="color-scheme" content="dark">
+<title>PERJURY — autonomous adversarial test hardening</title>
 <link rel="stylesheet" href="/ui/styles.css">
 </head>
 <body>
-<div id="sim-banner" class="sim-banner" hidden>SIMULATED — mock adapter, not a real run. No Gemini/Modal execution is happening.</div>
+<a class="skip" href="#main">Skip to results</a>
+<div id="sim-banner" class="sim-banner" role="note" hidden><strong>SIMULATED</strong> — mock adapter replaying a scripted run. No Gemini or Modal execution is happening. Not evidence.</div>
 <header class="top">
-  <div class="brand"><h1>PERJURY</h1><p>Your CI is green. PERJURY finds what your tests never proved.</p></div>
+  <div class="brand">
+    <div class="mark" aria-hidden="true"></div>
+    <div>
+      <h1>PERJURY <span class="descriptor">Autonomous adversarial test hardening</span></h1>
+      <p class="tagline">Your CI is green. PERJURY finds what your tests never proved.</p>
+    </div>
+  </div>
   <div class="controls">
-    <div class="clock" aria-live="off"><span id="clock">0:00</span><div class="budget"><i id="budget-bar"></i></div><small>2:00 budget</small></div>
+    <div class="clock" aria-label="Elapsed time against the two-minute demo budget">
+      <span id="clock">0:00</span>
+      <div class="budget" aria-hidden="true"><i id="budget-bar"></i></div>
+      <small>of 2:00 budget</small>
+    </div>
     <button id="cta" class="cta" type="button">Run PERJURY</button>
   </div>
 </header>
-<div class="legend" aria-label="Legend">
-  <span class="tag fact">FACT</span> executed by pytest / Modal
-  <span class="tag model">MODEL</span> Gemini proposal, not proof
-  <span class="tag derived">DERIVED</span> computed metric
+<div class="subbar">
+  <ol id="pipeline" class="pipeline" aria-label="Pipeline stages"></ol>
+  <div class="legend" aria-label="Provenance legend">
+    <span><span class="tag fact">FACT</span> executed by pytest in isolated Sandboxes</span>
+    <span><span class="tag model">MODEL</span> Gemini proposal — not proof</span>
+    <span><span class="tag derived">DERIVED</span> computed by the backend</span>
+  </div>
 </div>
 <div id="alert" class="alert" role="alert" hidden></div>
-<ol id="pipeline" class="pipeline" aria-label="Pipeline stages"></ol>
-<main class="grid">
-  <section id="p-baseline" class="panel"><h2>1 · Baseline <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-fanout" class="panel wide"><h2>2 · Mutation fan-out <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-survivor" class="panel wide"><h2>3 · Surviving mutant <span class="tag fact">diff</span> <span class="tag model">explanation</span></h2><div class="body"></div></section>
-  <section id="p-test" class="panel"><h2>4 · Generated test <span class="tag model">MODEL</span></h2><div class="body"></div></section>
-  <section id="p-proof" class="panel"><h2>5 · Proof <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-score" class="panel"><h2>6 · Mutation score <span class="tag derived">DERIVED</span></h2><div class="body"></div></section>
+<p id="live-stage" class="sr-only" aria-live="polite"></p>
+<main id="main" class="grid" tabindex="-1">
+  <section id="p-baseline" class="panel a-baseline" aria-labelledby="h-baseline"><h2 id="h-baseline"><span class="n">1</span>Green baseline <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-fanout" class="panel a-fanout" aria-labelledby="h-fanout"><h2 id="h-fanout"><span class="n">2</span>Mutation fan-out <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-survivor" class="panel a-survivor" aria-labelledby="h-survivor"><h2 id="h-survivor"><span class="n">3</span>Surviving mutant <span class="tag fact">DIFF</span> <span class="tag model">ANALYSIS</span></h2><div class="body"></div></section>
+  <section id="p-test" class="panel a-test" aria-labelledby="h-test"><h2 id="h-test"><span class="n">4</span>Generated regression test <span class="tag model">MODEL</span></h2><div class="body"></div></section>
+  <section id="p-proof" class="panel a-proof" aria-labelledby="h-proof"><h2 id="h-proof"><span class="n">5</span>Two-world proof <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-score" class="panel a-score" aria-labelledby="h-score"><h2 id="h-score"><span class="n">6</span>Same-batch mutation score <span class="tag derived">DERIVED</span></h2><div class="body"></div></section>
 </main>
-<footer class="foot"><span id="run-meta"></span></footer>
+<footer class="foot"><span>The model proposes. Execution proves.</span><span id="run-meta"></span></footer>
 <script type="module" src="/ui/app.js"></script>
 </body>
 </html>
