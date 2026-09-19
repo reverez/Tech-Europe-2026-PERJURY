@@ -306,11 +306,13 @@ def run_baseline(
             f"expected {execution_id!r}."
         )
     execution = bound_execution_output(spec, execution)
+    post_execution_manifest = build_snapshot_manifest(spec)
 
     result = BaselineResult(
         workspace_id=spec.workspace_id,
         source_snapshot_id=spec.snapshot_id,
         manifest_sha256=manifest.manifest_sha256,
+        post_execution_manifest_sha256=post_execution_manifest.manifest_sha256,
         execution=execution,
     )
     if not result.ready_for_mutation:
