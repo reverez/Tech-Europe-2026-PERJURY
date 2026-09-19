@@ -34,7 +34,7 @@ Do not begin the live presentation with a failing preflight.
 Show the refund-policy code and green baseline. Explain: green tests prove only what they cover.
 
 ### 0:20–0:50 — Adversarial mutation fan-out
-Start one PERJURY run. Show 6–10 semantic mutations executing in isolated Modal Sandboxes and the killed/survived/invalid/timeout states.
+Start one PERJURY run. Show 6–10 semantic mutations executing in isolated Modal Sandboxes and the killed/survived/invalid/timeout/infrastructure-error states.
 
 ### 0:50–1:15 — Inspect a real survivor
 Select the premium-customer behavior survivor. Show the actual source diff and Gemini's behavioral explanation. Describe it as a potential test gap, not a confirmed production bug.
@@ -47,7 +47,7 @@ Show:
 - original + candidate => PASS;
 - mutant + candidate => TEST_FAIL;
 - deterministic verified result;
-- mutation score/evidence summary.
+- same-batch before/after mutation score and evidence summary.
 
 Close on the distinction: Gemini searches for the weakness; execution decides whether the hardening is valid.
 
