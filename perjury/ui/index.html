@@ -7,45 +7,118 @@
 <title>PERJURY — autonomous adversarial test hardening</title>
 <link rel="stylesheet" href="/ui/styles.css">
 </head>
-<body>
+<body class="is-idle">
 <a class="skip" href="#main">Skip to results</a>
-<div id="sim-banner" class="sim-banner" role="note" hidden><strong>SIMULATED</strong> — mock adapter replaying a scripted run. No Gemini or Modal execution is happening. Not evidence.</div>
-<header class="top">
-  <div class="brand">
-    <div class="mark" aria-hidden="true"></div>
-    <div>
-      <h1>PERJURY <span class="descriptor">Autonomous adversarial test hardening</span></h1>
-      <p class="tagline">Your CI is green. PERJURY finds what your tests never proved.</p>
-    </div>
+<div id="sim-banner" class="sim-banner" role="note" hidden><strong>SIMULATED</strong><span>Mock adapter replaying a scripted run. No Gemini or Modal execution is happening. Not evidence.</span></div>
+
+<header class="topbar">
+  <div class="crumb">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="brand">PERJURY</span>
+    <span class="sep" aria-hidden="true">/</span>
+    <span class="ws" title="Configured workspace">refund-policy</span>
   </div>
-  <div class="controls">
+  <div class="top-right">
+    <span id="mode-pill" class="pill mode">REAL API</span>
+    <span id="state-pill" class="pill state idle-state">READY</span>
     <div class="clock" aria-label="Elapsed time against the two-minute demo budget">
-      <span id="clock">0:00</span>
+      <span id="clock">0:00</span><span class="of">/ 2:00</span>
       <div class="budget" aria-hidden="true"><i id="budget-bar"></i></div>
-      <small>of 2:00 budget</small>
     </div>
-    <button id="cta" class="cta" type="button">Run PERJURY</button>
+    <div id="cta-slot-header" class="cta-slot">
+      <button id="cta" class="cta" type="button">Run adversarial audit</button>
+    </div>
   </div>
 </header>
-<div class="subbar">
-  <ol id="pipeline" class="pipeline" aria-label="Pipeline stages"></ol>
-  <div class="legend" aria-label="Provenance legend">
-    <span><span class="tag fact">FACT</span> executed by pytest in isolated Sandboxes</span>
-    <span><span class="tag model">MODEL</span> Gemini proposal — not proof</span>
-    <span><span class="tag derived">DERIVED</span> computed by the backend</span>
-  </div>
+
+<aside class="side" aria-label="Workspace">
+  <nav class="nav" aria-label="Sections">
+    <a href="#overview" data-nav="overview" class="on"><span class="ic ic-o" aria-hidden="true"></span>Overview</a>
+    <a href="#p-fanout" data-nav="mutations"><span class="ic ic-m" aria-hidden="true"></span>Mutations</a>
+    <a href="#p-proof" data-nav="evidence"><span class="ic ic-e" aria-hidden="true"></span>Evidence</a>
+  </nav>
+
+  <section class="ws-card" aria-labelledby="ws-h">
+    <h2 id="ws-h" class="side-h">Target workspace</h2>
+    <p class="ws-name">refund-policy</p>
+    <p class="ws-meta">Python 3.12 · pytest</p>
+    <dl id="ws-live" class="ws-dl"></dl>
+    <p class="ws-foot">Configured workspace</p>
+  </section>
+
+  <section aria-labelledby="stack-h">
+    <h2 id="stack-h" class="side-h">Load-bearing stack</h2>
+    <ul class="stack">
+      <li class="st-gemini"><b>Gemini</b><span>proposes</span></li>
+      <li class="st-pydantic"><b>Pydantic</b><span>validates</span></li>
+      <li class="st-modal"><b>Modal</b><span>isolates</span></li>
+      <li class="st-pytest"><b>pytest</b><span>decides</span></li>
+    </ul>
+  </section>
+
+  <section aria-labelledby="prov-h">
+    <h2 id="prov-h" class="side-h">Provenance</h2>
+    <ul class="prov">
+      <li><span class="tag fact">FACT</span>executed by pytest</li>
+      <li><span class="tag model">MODEL</span>Gemini proposal</li>
+      <li><span class="tag derived">DERIVED</span>computed by backend</li>
+    </ul>
+  </section>
+</aside>
+
+<div class="content">
+  <nav class="rail-wrap" aria-label="Run progress">
+    <ol id="pipeline" class="rail"></ol>
+  </nav>
+
+  <div id="alert" class="alert" role="alert" hidden></div>
+  <p id="live-stage" class="sr-only" aria-live="polite"></p>
+
+  <section id="overview" class="hero" aria-labelledby="hero-title">
+    <h1 id="hero-title">Your tests are green.<span>Would they notice if behaviour changed?</span></h1>
+    <p class="hero-sub">PERJURY adversarially changes program behaviour and checks whether the existing suite notices.</p>
+    <div id="cta-slot-hero" class="cta-slot hero-cta"></div>
+    <p class="principle">The model proposes. Execution proves.</p>
+  </section>
+
+  <main id="main" class="run" tabindex="-1">
+    <div class="summary" aria-label="Run summary">
+      <section id="p-baseline" class="cell" aria-labelledby="h-baseline"><h2 id="h-baseline" class="cell-h">Baseline</h2><div class="body"></div></section>
+      <div id="summary-cells" class="cells"></div>
+    </div>
+
+    <section id="p-fanout" class="sec" aria-labelledby="h-fanout">
+      <header class="sec-h"><h2 id="h-fanout">Mutations</h2><p class="sub">Each mutant changes behaviour and runs against the real suite in its own Modal Sandbox.</p><span class="tag fact">FACT</span></header>
+      <div class="body"></div>
+    </section>
+
+    <section id="p-survivor" class="sec" aria-labelledby="h-survivor">
+      <header class="sec-h"><h2 id="h-survivor">Investigation</h2><p class="sub">Potential test gap — the evidence behind a surviving mutant.</p><span class="tags"><span class="tag fact">DIFF</span><span class="tag model">ANALYSIS</span></span></header>
+      <div class="body"></div>
+    </section>
+
+    <section id="p-test" class="sec" aria-labelledby="h-test">
+      <header class="sec-h"><h2 id="h-test">Generated defence</h2><p class="sub">One regression test, written by Gemini for the selected gap.</p><span class="tag model">MODEL</span></header>
+      <div class="body"></div>
+    </section>
+
+    <section id="p-proof" class="sec proof-sec" aria-labelledby="h-proof">
+      <header class="sec-h"><h2 id="h-proof">Two-world proof</h2><p class="sub">The same candidate runs against the original code and against the mutant.</p><span class="tag fact">FACT</span></header>
+      <div class="body"></div>
+    </section>
+
+    <section id="p-score" class="sec" aria-labelledby="h-score">
+      <header class="sec-h"><h2 id="h-score">Measured improvement</h2><p class="sub">The same mutation batch, re-run with the verified test.</p><span class="tag derived">DERIVED</span></header>
+      <div class="body"></div>
+    </section>
+
+    <details id="inspector" class="inspector">
+      <summary>Technical details</summary>
+      <div id="inspector-body" class="insp-body"></div>
+    </details>
+  </main>
+  <footer class="foot"><span>The model proposes. Execution proves.</span><span id="run-meta"></span></footer>
 </div>
-<div id="alert" class="alert" role="alert" hidden></div>
-<p id="live-stage" class="sr-only" aria-live="polite"></p>
-<main id="main" class="grid" tabindex="-1">
-  <section id="p-baseline" class="panel a-baseline" aria-labelledby="h-baseline"><h2 id="h-baseline"><span class="n">1</span>Green baseline <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-fanout" class="panel a-fanout" aria-labelledby="h-fanout"><h2 id="h-fanout"><span class="n">2</span>Mutation fan-out <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-survivor" class="panel a-survivor" aria-labelledby="h-survivor"><h2 id="h-survivor"><span class="n">3</span>Surviving mutant <span class="tag fact">DIFF</span> <span class="tag model">ANALYSIS</span></h2><div class="body"></div></section>
-  <section id="p-test" class="panel a-test" aria-labelledby="h-test"><h2 id="h-test"><span class="n">4</span>Generated regression test <span class="tag model">MODEL</span></h2><div class="body"></div></section>
-  <section id="p-proof" class="panel a-proof" aria-labelledby="h-proof"><h2 id="h-proof"><span class="n">5</span>Two-world proof <span class="tag fact">FACT</span></h2><div class="body"></div></section>
-  <section id="p-score" class="panel a-score" aria-labelledby="h-score"><h2 id="h-score"><span class="n">6</span>Same-batch mutation score <span class="tag derived">DERIVED</span></h2><div class="body"></div></section>
-</main>
-<footer class="foot"><span>The model proposes. Execution proves.</span><span id="run-meta"></span></footer>
 <script type="module" src="/ui/app.js"></script>
 </body>
 </html>
