@@ -15,7 +15,8 @@
 | Scope creep | new language/GitHub automation/etc. appears on critical path | enforce SPEC + decisions | defer to post-hackathon backlog | parent epics |
 | Parallel agent merge collision | same contract file edited concurrently | lane ownership + short branches + rebase | serialize contract changes | DEVELOPMENT_WORKFLOW |
 | Documentation drift | commands/issue numbers no longer match code | doc update matrix + final audit | block #23 sign-off | #23 |
-| Secret leakage | keys appear in logs/evidence | env-only credentials + redaction | revoke key, purge artifact, rerun | #19 |
+| Secret copied into Sandbox | .env/local runtime files appear in upload manifest | sanitized WorkspaceSpec manifest + denylist + tests | abort run; fix manifest before execution | #4/#6 |
+| Secret leakage | keys appear in logs/evidence | env-only credentials + bounded output + redaction | revoke key, purge artifact, rerun | #19 |
 | Demo code changes after successful rehearsal | commit SHA differs | evidence freeze records SHA | rerun preflight/rehearsal before presenting | #24 |
 
 ## Risk policy
