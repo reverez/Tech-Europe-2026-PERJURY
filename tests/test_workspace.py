@@ -276,3 +276,74 @@ def test_baseline_result_is_serializable_with_snapshot_identity(tmp_path: Path) 
     assert payload["ready_for_mutation"] is True
     assert payload["manifest_sha256"] == payload["post_execution_manifest_sha256"]
     assert payload["execution"]["execution_id"] == "baseline:unit-workspace"
+
+
+def test_local_executor_distinguishes_test_failure_from_invalid_collection(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "app.py").write_text("def value() -> int:\n    return 1\n", encoding="utf-8")
+    (tmp_path / "test_fail.py").write_text(
+        "from app import value\n\n\ndef test_value() -> None:\n    assert value() == 2\n",
+        encoding="utf-8",
+    )
+    spec = minimal_spec(
+        tmp_path,
+        context_paths=("test_fail.py",),
+        pytest_argv=("python", "-m", "pytest", "-q", "test_fail.py"),
+    )
+    failed = LocalPytestExecutor().execute(spec, execution_id="probe:test-fail")
+
+    assert failed.outcome is ExecutionOutcome.TEST_FAIL
+    assert failed.exit_code == 1
+
+    (tmp_path / "empty_test.py").write_text("# deliberately no tests\n", encoding="utf-8")
+    invalid_spec = minimal_spec(
+        tmp_path,
+        context_paths=("empty_test.py",),
+        pytest_argv=("python", "-m", "pytest", "-q", "empty_test.py"),
+    )
+    invalid = LocalPytestExecutor().execute(
+        invalid_spec,
+        execution_id="probe:no-tests",
+    )
+
+    assert invalid.outcome is ExecutionOutcome.INVALID
+    assert invalid.exit_code == 5
+
+
+def test_local_executor_does_not_inherit_host_environment(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    (tmp_path / "app.py").write_text("VALUE = 1\n", encoding="utf-8")
+    (tmp_path / "test_env.py").write_text(
+        "import os\n\n\ndef test_host_secret_absent() -> None:\n"
+        "    assert os.getenv('PERJURY_HOST_SECRET') is None\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("PERJURY_HOST_SECRET", "must-not-leak")
+    spec = minimal_spec(
+        tmp_path,
+        context_paths=("test_env.py",),
+        pytest_argv=("python", "-m", "pytest", "-q", "test_env.py"),
+    )
+
+    result = run_baseline(spec, LocalPytestExecutor())
+
+    assert result.execution.outcome is ExecutionOutcome.PASS
+
+
+def test_local_install_failure_is_infrastructure_error(tmp_path: Path) -> None:
+    write_minimal_workspace(tmp_path)
+    spec = minimal_spec(
+        tmp_path,
+        install_argv=("python", "-c", "raise SystemExit(7)"),
+    )
+
+    with pytest.raises(BaselineNotReadyError) as caught:
+        run_baseline(spec, LocalPytestExecutor())
+
+    assert caught.value.result.execution.outcome is ExecutionOutcome.INFRA_ERROR
+    assert "install command failed" in (
+        caught.value.result.execution.failure_detail or ""
+    )
