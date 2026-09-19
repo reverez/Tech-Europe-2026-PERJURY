@@ -120,6 +120,7 @@ Read these in order when implementing:
 6. [Test strategy](docs/TEST_STRATEGY.md)
 7. [Risk register](docs/RISK_REGISTER.md)
 8. [Demo runbook](docs/DEMO_RUNBOOK.md)
+9. [Recursive audit checklist](docs/AUDIT_CHECKLIST.md)
 
 ## Setup
 
