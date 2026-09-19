@@ -98,6 +98,8 @@ Target shape for #4:
 Commands are structured argv-like data, not interpolated shell strings.
 
 ### Provider boundary
+Baseline execution records the sanitized manifest before and after the command and becomes mutation-ready only when the source identity is unchanged.
+
 Workspace/baseline semantics are provider-independent. The core accepts an executor interface that deterministic tests can fake/inject; the production Modal implementation is supplied later by #6. Baseline and mutant paths share the semantic execution contract without making #4 depend on live Modal.
 
 ### Execution outcome
