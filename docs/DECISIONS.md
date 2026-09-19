@@ -21,6 +21,8 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-015 | Demo progress uses same-origin SSE with an in-memory single-process run registry; only one active run is supported. | Accepted |
 | ADR-016 | The MVP UI is zero-build local HTML/CSS/vanilla JS served by FastAPI; no Node toolchain or CDN is required. | Accepted |
 | ADR-017 | Sanitized evidence is persisted under gitignored `.perjury/runs/<run_id>/evidence.json`; no database is introduced. | Accepted |
+| ADR-018 | Modal workspaces are built from a sanitized manifest; secrets/runtime directories are never blindly uploaded, and mutations can target implementation allowlists only. | Accepted |
+| ADR-019 | Process output capture is bounded and carries explicit truncation metadata through evidence/API. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -61,6 +63,14 @@ The demo is one screen with one primary action. A zero-build same-origin fronten
 ## ADR-017 — Evidence persistence
 
 Active state is in memory; a sanitized JSON evidence bundle is written locally for rehearsal/debugging/final submission evidence. The runtime artifact directory is gitignored, and credentials must be removed before serialization.
+
+## ADR-018 — Sanitized workspace manifests
+
+A target repository is not copied wholesale into Modal. WorkspaceSpec drives an explicit manifest/exclusion policy, separating mutable implementation files from context-only tests. Path resolution prevents traversal and symlink escape. Credentials such as GOOGLE_API_KEY are not forwarded into mutation Sandboxes.
+
+## ADR-019 — Bounded output
+
+Tests can print arbitrarily large output or accidentally expose sensitive text. Execution captures bounded stdout/stderr, records whether truncation occurred, and preserves that metadata through evidence/API so a truncated log is never presented as complete.
 
 ## Changing a decision
 
