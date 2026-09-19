@@ -90,7 +90,9 @@ Target shape for #4:
 - mutable implementation-path allowlist;
 - test/context path allowlist;
 - sanitized snapshot exclusions;
-- max captured stdout/stderr bytes and truncation policy.
+- max captured stdout/stderr bytes and truncation policy;
+- maximum snapshot file count/total bytes;
+- explicit network policy, defaulting to blocked.
 
 Commands are structured argv-like data, not interpolated shell strings.
 
@@ -149,8 +151,10 @@ Required controls:
 7. generated tests are created as new files in an allowed test directory inside an isolated candidate workspace; existing tests are not overwritten/appended;
 8. every applied change has a renderable diff;
 9. stdout/stderr capture is bounded and marks truncation;
-10. Sandboxes terminate on success, failure, exception, and timeout;
-11. unsupported target setup fails explicitly rather than being guessed.
+10. snapshot file-count/byte limits reject oversized workspaces before upload;
+11. pytest Sandboxes block outbound network by default; any opt-in is explicit in WorkspaceSpec/evidence;
+12. Sandboxes terminate on success, failure, exception, and timeout;
+13. unsupported target setup fails explicitly rather than being guessed.
 
 ## 7. Concurrency model
 
