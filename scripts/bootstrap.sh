@@ -21,7 +21,7 @@ python3 - <<'PY'
 import sys
 if sys.version_info < (3, 12):
     raise SystemExit("ERROR: Python 3.12+ is required.")
-print(f"Python OK: {sys.version.split()[0]}")
+print(f"Python 3.12 runtime OK: {sys.version.split()[0]}")
 PY
 
 if [ ! -d ".venv" ]; then
