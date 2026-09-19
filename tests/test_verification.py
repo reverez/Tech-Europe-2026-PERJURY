@@ -83,3 +83,27 @@ def test_non_test_failure_in_original_world_is_inconclusive(
     )
 
     assert result.verdict == "inconclusive"
+
+
+@pytest.mark.parametrize("original_outcome", list(ExecutionOutcome))
+@pytest.mark.parametrize("mutant_outcome", list(ExecutionOutcome))
+def test_complete_verdict_matrix(
+    original_outcome: ExecutionOutcome,
+    mutant_outcome: ExecutionOutcome,
+) -> None:
+    result = judge_verification(
+        evidence(original_outcome, mutant_outcome),
+        mutation_id="M03",
+    )
+
+    if (
+        original_outcome is ExecutionOutcome.PASS
+        and mutant_outcome is ExecutionOutcome.TEST_FAIL
+    ):
+        expected = "verified"
+    elif original_outcome is ExecutionOutcome.TEST_FAIL:
+        expected = "rejected"
+    else:
+        expected = "inconclusive"
+
+    assert result.verdict == expected
