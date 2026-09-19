@@ -11,7 +11,7 @@ outcomes are never accepted as verification evidence.
 
 from __future__ import annotations
 
-from perjury.contracts import ExecutionOutcome, MutationStatus, VerificationEvidence
+from perjury.contracts import ExecutionOutcome, VerificationEvidence
 from perjury.modal_runner import RunSpec, execute_pytest
 from perjury.verification import judge_verification
 
