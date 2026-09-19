@@ -126,6 +126,7 @@ let announced = '';
 let focusRun = '';
 /** @type {string|null} */
 let focusPanel = null;
+let mutationFilter = 'all';
 
 /** During a live run, bring the newest surface into view. Restored runs never jump. @param {RunSnapshot|null} s */
 function followFocus(s) {
@@ -261,10 +262,21 @@ function renderInspector(s) {
   );
 }
 
+function evidenceBtn() {
+  const b = h('button', { type: 'button', class: 'secondary evidence-action' }, ['View execution evidence']);
+  b.addEventListener('click', () => {
+    const details = /** @type {HTMLDetailsElement|null} */ (document.getElementById('inspector'));
+    if (!details) return;
+    details.open = true;
+    details.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' });
+  });
+  return b;
+}
+
 /** @param {RunSnapshot|null} s @param {(id:string)=>void} select @param {string|null} selected */
 export function render(s, select, selected) {
   current = s;
-  if ((s?.run_id ?? '') !== mem.run) { mem.run = s?.run_id ?? ''; mem.first = true; mem.status.clear(); mem.seen.clear(); }
+  if ((s?.run_id ?? '') !== mem.run) { mem.run = s?.run_id ?? ''; mem.first = true; mem.status.clear(); mem.seen.clear(); mutationFilter = 'all'; }
   const idle = !s;
   document.body.classList.toggle('is-idle', idle);
   for (const a of document.querySelectorAll('.nav a')) {
@@ -299,10 +311,32 @@ export function render(s, select, selected) {
   // mutation matrix
   const muts = s?.mutations ?? [];
   const inspected = selected ?? s?.survivor_id ?? null;
+  const survivedCount = muts.filter((m) => m.status === 'survived').length;
+  const killedCount = muts.filter((m) => m.status === 'killed').length;
+  const visibleMuts = mutationFilter === 'all' ? muts : muts.filter((m) => m.status === mutationFilter);
+  const filterButton = (/** @type {string} */ label, /** @type {string} */ key, /** @type {number} */ count) => {
+    const active = mutationFilter === key;
+    const b = h('button', {
+      type: 'button',
+      class: `filter-btn${active ? ' on' : ''}`,
+      'aria-pressed': String(active),
+    }, [label, h('span', { class: 'filter-count' }, [String(count)])]);
+    b.addEventListener('click', () => {
+      mutationFilter = key;
+      render(current, select, selected);
+    });
+    return b;
+  };
   fill(body('p-fanout'), !muts.length
     ? waiting(running, 'Gemini proposes 6–10 semantic mutations.', 'Planning and validating mutations…')
     : [
-      h('div', { class: 'matrix' }, muts.map((m) => {
+      h('div', { class: 'filterbar', 'aria-label': 'Filter mutations' }, [
+        h('span', { class: 'filter-label' }, ['Show']),
+        filterButton('All', 'all', muts.length),
+        filterButton('Survived', 'survived', survivedCount),
+        filterButton('Killed', 'killed', killedCount),
+      ]),
+      h('div', { class: 'matrix' }, visibleMuts.map((m) => {
         const picked = m.id === s?.survivor_id;
         const prev = mem.status.get(m.id);
         mem.status.set(m.id, m.status);
@@ -325,6 +359,7 @@ export function render(s, select, selected) {
         });
         return b;
       })),
+      !visibleMuts.length ? h('p', { class: 'filter-empty' }, [`No ${mutationFilter} mutations yet.`]) : null,
     ]);
 
   // investigation: master (diff) / detail (analysis + execution)
@@ -334,6 +369,10 @@ export function render(s, select, selected) {
   fill(body('p-survivor'), !shown
     ? waiting(running && muts.length > 0, 'The mutant your tests failed to catch appears here.', 'Waiting for surviving mutants…')
     : [
+      h('div', { class: 'investigation-head' }, [
+        h('div', { class: 'ih-main' }, [h('span', { class: 'ih-id' }, [shown.id]), h('strong', null, [shown.description])]),
+        h('div', { class: 'ih-meta' }, [statusBadge(shown.status), shown.duration_ms != null ? h('code', null, [secs(shown.duration_ms)]) : null, tag('fact', 'FACT')]),
+      ]),
       h('p', { class: `lede${isGap ? ' gap' : ''}${reveal(`lede:${shown.id}`)}` }, [isGap ? 'Behaviour changed. Existing tests did not notice.' : shown.status === 'killed' ? 'Behaviour changed. Existing tests caught it.' : `Mutant ${shown.status.replace('_', ' ')}.`]),
       h('div', { class: 'md' }, [
         h('div', { class: 'md-main' }, [diffView(shown.diff, shown.file_path)]),
@@ -394,6 +433,7 @@ export function render(s, select, selected) {
       verdict ? h('div', { class: `verdict ${verdict}${reveal(`verdict:${verdict}`)}`, 'data-verdict': verdict }, [h('span', { class: 'vd' }, [verdict.toUpperCase()]),
         verdict === 'verified' ? h('span', { class: 'vt' }, ['Execution proved the candidate distinguishes the two behaviours.']) : null])
         : h('p', { class: 'idle' }, ['Awaiting deterministic verdict…']),
+      verdict === 'verified' ? h('div', { class: 'proof-actions' }, [evidenceBtn()]) : null,
       runVerdict && v.verdict !== runVerdict ? h('p', { class: 'note' }, [`Candidate verdict: ${v.verdict}. Run ended ${runVerdict}: ${s?.result?.reason ?? ''}`]) : null,
       verdict !== 'verified' ? h('p', { class: 'note' }, [s?.result ? s.result.explanation : v.explanation]) : null,
     ]);
