@@ -78,7 +78,7 @@ def files_for(source: str, *, include_generated_test: bool = False) -> dict[str,
 
 
 def run_case(
-    mutation_id: str,
+    execution_id: str,
     source: str,
     *,
     include_generated_test: bool = False,
@@ -89,7 +89,7 @@ def run_case(
 
     return execute_pytest(
         RunSpec(
-            mutation_id=mutation_id,
+            execution_id=execution_id,
             workspace_files=files_for(
                 source,
                 include_generated_test=include_generated_test,
