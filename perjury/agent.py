@@ -2,12 +2,15 @@ from __future__ import annotations
 
 import os
 
+from dotenv import load_dotenv
 from pydantic_ai import Agent
 
 from .contracts import MutationBatch, SurvivorAnalysis, TestProposal
 
 
-MODEL = os.getenv("PERJURY_MODEL", "google-gla:gemini-3.8-flash")
+load_dotenv()
+
+MODEL = os.getenv("PERJURY_MODEL", "google:gemini-3.8-flash")
 
 mutation_agent = Agent(
     MODEL,
