@@ -1,34 +1,33 @@
 // @ts-check
-// SIMULATED event script for UI development. Not real execution evidence.
+// SIMULATED event script for UI development/rehearsal only. It mirrors the proven canonical refund
+// result (M01 selected; first pass 5 killed / 3 survived / 0 excluded = 0.625; re-score 6 killed /
+// 2 survived = 0.750) and the real #17 event shapes, but is NOT execution evidence.
 
-const DIFF_M04 = `--- a/examples/refund/refund.py
-+++ b/examples/refund/refund.py
-@@ -7,3 +7,3 @@
--    if days_since_purchase <= 30 or premium:
-+    if days_since_purchase <= 30:
-         return price`;
-
-const mut = (/** @type {string} */ id, /** @type {string} */ description, /** @type {string} */ hypothesis, /** @type {string} */ diff) =>
-  ({ id, file_path: 'examples/refund/refund.py', description, hypothesis, diff });
+const F = 'examples/refund/refund.py';
+const PREMIUM = '    if days_since_purchase <= 30 or premium:';
+const RET = '        return price';
 const d = (/** @type {string} */ a, /** @type {string} */ b) =>
-  `--- a/examples/refund/refund.py\n+++ b/examples/refund/refund.py\n@@ -7,3 +7,3 @@\n-${a}\n+${b}\n`;
+  `--- a/${F}\n+++ b/${F}\n@@ -1,1 +1,1 @@\n-${a}\n+${b}\n`;
+const m = (/** @type {string} */ id, /** @type {string} */ description, /** @type {string} */ diff) =>
+  ({ id, file_path: F, description, hypothesis: description, diff });
 
 const MUTATIONS = [
-  mut('M01', 'Refund window boundary 30 -> 29', 'Day-30 purchases lose their refund.', d('    if days_since_purchase <= 30 or premium:', '    if days_since_purchase <= 29 or premium:')),
-  mut('M02', 'Window comparison <= becomes <', 'Off-by-one at the boundary.', d('    if days_since_purchase <= 30 or premium:', '    if days_since_purchase < 30 or premium:')),
-  mut('M03', 'Partial refund instead of full', 'Refund is halved inside the window.', d('        return price', '        return price / 2')),
-  mut('M04', 'Premium customers lose out-of-window refund', 'Premium status no longer extends eligibility beyond 30 days.', DIFF_M04),
-  mut('M05', 'Negative price no longer rejected', 'Validation removed.', d('    if price < 0:', '    if price < -1e18:')),
-  mut('M06', 'Zero refund returns price', 'Out-of-window refunds are granted.', d('    return 0.0', '    return price')),
-  mut('M07', 'Syntactically broken guard', 'Introduces an invalid expression.', d('    if days_since_purchase < 0:', '    if days_since_purchase <')),
-  mut('M08', 'Unbounded loop in refund', 'Never terminates.', d('    return 0.0', '    while True: pass')),
+  m('M01', 'Premium customers lose out-of-window refund', d(PREMIUM, '    if days_since_purchase <= 30:')),
+  m('M02', 'Window boundary 30 -> 29', d(PREMIUM, '    if days_since_purchase <= 29 or premium:')),
+  m('M03', 'Premium no longer sufficient alone', d(PREMIUM, '    if days_since_purchase <= 30 and premium:')),
+  m('M04', 'Refund halved inside the window', d(RET, '        return price / 2')),
+  m('M05', 'Out-of-window refund granted in full', d('    return 0.0', '    return price')),
+  m('M06', 'Out-of-window refund becomes 1.0', d('    return 0.0', '    return 1.0')),
+  m('M07', 'Negative price no longer rejected', d('    if price < 0:', '    if price < -1:')),
+  m('M08', 'Inside-window refund inflated', d(RET, '        return price + 1')),
 ];
-const OUTCOMES = /** @type {Record<string, [string, number]>} */ ({
-  M01: ['killed', 4200], M02: ['killed', 4700], M03: ['killed', 5100], M04: ['survived', 5600],
-  M05: ['killed', 4400], M06: ['killed', 6100], M07: ['invalid', 900], M08: ['timeout', 10000],
+const FIRST_PASS = { M01: 'survived', M02: 'survived', M03: 'killed', M04: 'killed', M05: 'killed', M06: 'killed', M07: 'survived', M08: 'killed' };
+const score = (/** @type {number} */ killed, /** @type {number} */ survived) => ({
+  killed, survived, invalid: 0, timeout: 0, infra_error: 0, valid_total: killed + survived,
+  excluded_total: 0, excluded: 0, state: 'scored', score: killed / (killed + survived),
 });
-const SCORE_BEFORE = { killed: 5, survived: 1, excluded: 2, score: 5 / 6 };
-const SCORE_AFTER = { killed: 6, survived: 0, excluded: 2, score: 1 };
+const BATCH = 'sha256:' + 'ab'.repeat(32);
+const CONTEXT = 'sha256:' + 'cd'.repeat(32);
 const TEST_CODE = `from examples.refund.refund import calculate_refund
 
 
@@ -41,34 +40,46 @@ export function mockEvents(runId) {
   let seq = 0;
   /** @type {{delay:number, event:import('./contract.js').RunEvent}[]} */
   const out = [];
-  const add = (/** @type {number} */ delay, /** @type {string} */ type, /** @type {any} */ data, /** @type {any} */ stage, /** @type {string=} */ mutation_id) =>
-    out.push({ delay, event: { run_id: runId, seq: ++seq, type, stage, mutation_id, data } });
+  const add = (/** @type {number} */ delay, /** @type {string} */ type, /** @type {string} */ stage, /** @type {any} */ data, /** @type {string=} */ mutation_id) =>
+    out.push({ delay, event: { run_id: runId, seq: ++seq, type, stage: /** @type {any} */ (stage), mutation_id, data } });
 
-  add(300, 'run.started', { started_at_ms: Date.now(), commit_sha: 'mock0000' }, 'baseline');
-  add(1200, 'baseline.completed', { outcome: 'PASS', duration_ms: 3100, summary: '4 passed' }, 'planning');
-  add(1800, 'plan.completed', { mutations: MUTATIONS }, 'mutation_execution');
-  for (const m of MUTATIONS) add(80, 'mutation.started', {}, 'mutation_execution', m.id);
+  add(300, 'run.started', 'created', { started_at_ms: Date.now(), commit_sha: 'mock000' });
+  add(900, 'baseline.completed', 'baseline', { outcome: 'PASS', duration_ms: 3100, summary: '4 passed' });
+  add(300, 'context.completed', 'context', { context_sha256: CONTEXT });
+  add(1200, 'plan.completed', 'planning', { batch_sha256: BATCH, mutations: MUTATIONS });
   for (const id of ['M07', 'M01', 'M02', 'M05', 'M03', 'M04', 'M06', 'M08']) {
-    const [status, duration_ms] = OUTCOMES[id];
-    add(700, 'mutation.completed', { status, duration_ms }, 'mutation_execution', id);
+    add(600, 'mutation.completed', 'mutation_execution', { status: /** @type {any} */ (FIRST_PASS)[id], outcome: 'x', duration_ms: 4200 }, id);
   }
-  add(500, 'survivor.selected', {}, 'survivor_analysis', 'M04');
-  add(1500, 'analysis.completed', {
-    mutation_id: 'M04',
+  add(200, 'execution.completed', 'mutation_execution', { score: score(5, 3) });
+  add(1200, 'analysis.completed', 'survivor_analysis', {
+    mutation_id: 'M01',
     behavioural_gap: 'No test exercises a premium customer outside the 30-day window.',
     test_intent: 'Assert premium customers past day 30 still receive a full refund.',
     possibly_equivalent: false,
-    reasoning: 'Removing `or premium` changes results only for premium + days > 30, which no existing test covers.',
-  }, 'test_generation');
-  add(1400, 'test.proposed', {
-    mutation_id: 'M04', test_name: 'test_premium_customer_outside_window_still_gets_refund',
-    target_file: 'examples/refund/test_refund_premium_window.py', test_code: TEST_CODE,
+    reasoning: 'Removing `or premium` changes results only for premium customers after day 30, which no existing test covers.',
+  }, 'M01');
+  add(200, 'survivor.selected', 'survivor_analysis', { label: 'potential test gap', summary: 'Potential test gap in ' + F }, 'M01');
+  add(1400, 'test.proposed', 'test_generation', {
+    mutation_id: 'M01', test_name: 'test_premium_customer_outside_window_still_gets_refund',
+    target_file: 'examples/refund/test_refund.py', test_code: TEST_CODE,
     explanation: 'Pins the premium out-of-window refund rule.',
-  }, 'verification');
-  add(2200, 'verification.completed', {
-    mutation_id: 'M04', original: 'PASS', mutant: 'TEST_FAIL', original_duration_ms: 3300, mutant_duration_ms: 3500,
-  }, 'rescoring');
-  add(1600, 'rescore.completed', { before: SCORE_BEFORE, after: SCORE_AFTER }, 'rescoring');
-  add(300, 'run.completed', { result: { verdict: 'verified', explanation: 'Original + candidate PASS; mutant + candidate TEST_FAIL.' } }, 'verified');
+  }, 'M01');
+  add(900, 'candidate.ready', 'test_generation', {
+    candidate_path: 'examples/refund/test_perjury_M01.py', sha256: 'ef'.repeat(32),
+    diff: '--- /dev/null\n+++ b/examples/refund/test_perjury_M01.py\n',
+  }, 'M01');
+  add(1800, 'verification.completed', 'verification', {
+    original: 'PASS', mutant: 'TEST_FAIL', original_duration_ms: 3300, mutant_duration_ms: 3500,
+    verdict: 'verified', explanation: 'Generated test passes on the original and produces a normal pytest test failure on the mutant.',
+  }, 'M01');
+  add(1500, 'rescore.completed', 'rescoring', {
+    status: 'confirmed', before: score(5, 3), after: score(6, 2), delta: 0.125, direction: 'improved',
+    batch_sha256: BATCH, newly_killed_ids: ['M01'], newly_survived_ids: [],
+    message: 'Same-batch re-score: 0.625 -> 0.750 (improved).',
+  }, 'M01');
+  add(300, 'run.completed', 'verified', {
+    state: 'verified', reason: 'verified',
+    result: { verdict: 'verified', explanation: 'Same-batch re-score: 0.625 -> 0.750 (improved).' },
+  });
   return out;
 }

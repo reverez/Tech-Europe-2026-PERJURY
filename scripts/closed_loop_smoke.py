@@ -11,11 +11,11 @@ import os
 from pathlib import Path
 
 import modal
+from _mock_models import MockAnalyzer, MockGenerator
 from dotenv import load_dotenv
 
 from perjury.analysis import GeminiSurvivorAnalyzer
 from perjury.canonical import CanonicalRefundPlanner
-from perjury.contracts import SurvivorAnalysis, TestProposal
 from perjury.generation import GeminiTestGenerator
 from perjury.modal_runner import ModalWorkspaceExecutor, _get_app
 from perjury.orchestrator import RunConfig, RunStage, run_perjury
@@ -23,31 +23,6 @@ from perjury.planning import GeminiMutationPlanner, PlanningConfig
 from perjury.workspace import LocalPytestExecutor, refund_workspace_spec
 
 ROOT = Path(__file__).resolve().parents[1]
-
-
-class MockAnalyzer:
-    def analyze(self, request):
-        return SurvivorAnalysis(
-            mutation_id=request.mutation_id,
-            behavioural_gap="No test covers premium customers outside the 30-day window.",
-            test_intent="Premium customers past day 30 keep a full refund.",
-            reasoning="Removing 'or premium' only changes premium customers after day 30.",
-        )
-
-
-class MockGenerator:
-    def generate(self, request):
-        return TestProposal(
-            mutation_id=request.mutation_id,
-            test_name="test_premium_customer_outside_window_still_gets_refund",
-            target_file="examples/refund/test_refund.py",
-            test_code=(
-                "from examples.refund.refund import calculate_refund\n\n\n"
-                "def test_premium_customer_outside_window_still_gets_refund() -> None:\n"
-                "    assert calculate_refund(100.0, 45, premium=True) == 100.0\n"
-            ),
-            explanation="Pins the premium out-of-window refund rule.",
-        )
 
 
 def main() -> None:

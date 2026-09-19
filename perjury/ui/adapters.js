@@ -4,7 +4,7 @@ import { mockEvents } from './mock_events.js';
 
 /** @typedef {import('./contract.js').RunAdapter} RunAdapter */
 
-/** Real transport: same-origin POST/GET/SSE from #17. @returns {RunAdapter} */
+/** Real transport: same-origin POST/GET/SSE from #17 (the only path used in live mode). @returns {RunAdapter} */
 export function liveAdapter() {
   /** @param {Response} r */
   async function json(r) {
@@ -22,8 +22,9 @@ export function liveAdapter() {
     kind: 'live',
     start: async () => (await json(await fetch('/api/runs', { method: 'POST' }))).run_id,
     snapshot: async (id) => json(await fetch(`/api/runs/${encodeURIComponent(id)}`)),
-    subscribe(id, onEvent, onClose) {
-      const es = new EventSource(`/api/runs/${encodeURIComponent(id)}/events`);
+    subscribe(id, onEvent, onClose, afterSeq = 0) {
+      const cursor = afterSeq > 0 ? `?after=${afterSeq}` : '';
+      const es = new EventSource(`/api/runs/${encodeURIComponent(id)}/events${cursor}`);
       es.onmessage = (m) => {
         try { onEvent(JSON.parse(m.data)); } catch (e) { onClose(/** @type {Error} */ (e)); }
       };
@@ -47,10 +48,10 @@ export function mockAdapter({ speed = 1 } = {}) {
     kind: 'mock',
     start: async () => runId,
     snapshot: async (id) => ({ ...replay(id, events.slice(0, delivered).map((x) => x.event)) }),
-    subscribe(_id, onEvent, onClose) {
+    subscribe(_id, onEvent, onClose, afterSeq = 0) {
       let cancelled = false;
       (async () => {
-        for (const { delay, event } of events) {
+        for (const { delay, event } of events.filter((x) => x.event.seq > afterSeq)) {
           await new Promise((r) => setTimeout(r, delay / speed));
           if (cancelled) return;
           delivered += 1;

@@ -39,8 +39,12 @@ async function finish() {
   paint();
 }
 
-/** @param {string} runId @param {number} startedAt */
-function follow(runId, startedAt) {
+const MAX_RESUBSCRIBES = 5;
+
+/** Follow the SSE stream; if it drops before a terminal event, recover from the authoritative
+ * snapshot and resume after the last seen seq (bounded retries).
+ * @param {string} runId @param {number} startedAt @param {number} [attempt] */
+function follow(runId, startedAt, attempt = 0) {
   t0 = startedAt;
   clearInterval(timer);
   timer = setInterval(() => renderClock(Date.now() - t0), 250);
@@ -52,13 +56,13 @@ function follow(runId, startedAt) {
     if (isTerminal(snap.stage)) { unsub(); finish(); }
   }, async (err) => {
     if (!snap || isTerminal(snap.stage)) return;
-    // Stream dropped: recover from the authoritative snapshot rather than guessing.
     try {
       snap = await adapter.snapshot(runId); paint();
       if (isTerminal(snap.stage)) return finish();
-    } catch { /* fall through */ }
-    if (err) fail(`Lost event stream: ${err.message}`);
-  });
+    } catch { /* fall through to retry */ }
+    if (attempt >= MAX_RESUBSCRIBES) return fail(`Lost event stream${err ? `: ${err.message}` : ''}`);
+    setTimeout(() => follow(runId, t0, attempt + 1), 500 * (attempt + 1));
+  }, snap?.last_seq ?? 0);
 }
 
 cta.addEventListener('click', async () => {
@@ -69,7 +73,7 @@ cta.addEventListener('click', async () => {
     history.replaceState(null, '', `#run=${encodeURIComponent(runId)}`);
     snap = await adapter.snapshot(runId);
     paint();
-    follow(runId, Date.now());
+    follow(runId, snap.started_at_ms ?? Date.now());
   } catch (e) { fail(`Could not start run: ${/** @type {Error} */ (e).message}`); }
 });
 

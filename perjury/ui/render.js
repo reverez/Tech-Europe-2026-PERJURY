@@ -1,5 +1,5 @@
 // @ts-check
-import { clock, pct } from './store.js';
+import { clock, deltaLabel, lastStage, pct } from './store.js';
 
 /** @typedef {import('./contract.js').RunSnapshot} RunSnapshot */
 
@@ -15,17 +15,21 @@ export function h(tag, attrs = null, kids = []) {
 }
 
 const STAGES = [
-  ['baseline', 'Baseline'], ['planning', 'Plan'], ['mutation_execution', 'Fan-out'],
+  ['baseline', 'Baseline'], ['context', 'Context'], ['planning', 'Plan'], ['mutation_execution', 'Fan-out'],
   ['survivor_analysis', 'Survivor'], ['test_generation', 'Test'], ['verification', 'Proof'],
   ['rescoring', 'Re-score'],
 ];
-const ORDER = ['created', ...STAGES.map((s) => s[0]), 'verified'];
+const KEYS = STAGES.map((s) => s[0]);
+const TERMINAL = ['verified', 'rejected', 'inconclusive', 'failed'];
 
-/** @param {Element} el @param {Node[]} kids */
-function fill(el, kids) { el.replaceChildren(...kids); }
+/** Falsy children (null/false from conditional sections) are dropped, never stringified.
+ * @param {Element} el @param {(Node|null|false|undefined)[]} kids */
+function fill(el, kids) { el.replaceChildren(...kids.filter((k) => !!k)); }
 /** @param {string} id */
 function body(id) { return /** @type {Element} */ (document.querySelector(`#${id} .body`)); }
 const idle = (/** @type {string} */ t) => h('p', { class: 'idle' }, [t]);
+const tag = (/** @type {string} */ kind, /** @type {string} */ text) => h('span', { class: `tag ${kind}` }, [text]);
+const secs = (/** @type {number} */ ms) => `${(ms / 1000).toFixed(1)}s`;
 
 /** @param {string} diff */
 export function diffView(diff) {
@@ -38,34 +42,56 @@ export function diffView(diff) {
   return pre;
 }
 
-/** @param {string} v */
+/** Semantic outcomes arrive UPPERCASE from the API; classes are lowercase.
+ * @param {string} v */
 function outcomeBadge(v) {
   return h('span', { class: `badge ${v.toLowerCase()}` }, [v.replace('_', ' ')]);
 }
 
+/** @param {RunSnapshot|null} s */
+function pipelineStates(s) {
+  if (!s) return KEYS.map(() => 'todo');
+  const idx = KEYS.indexOf(lastStage(s));
+  const terminal = TERMINAL.includes(s.stage);
+  return KEYS.map((_, i) => {
+    if (i < idx) return 'done';
+    if (i > idx) return 'todo';
+    if (!terminal) return 'active';
+    return s.stage === 'verified' ? 'done' : 'stopped';
+  });
+}
+
+/** @param {import('./contract.js').Score} sc @param {string} label @param {string} cls */
+function scoreCell(sc, label, cls) {
+  const undefinedScore = sc.score == null;
+  return h('div', null, [
+    h('small', null, [label]),
+    h('strong', { class: undefinedScore ? 'na' : cls }, [pct(sc.score)]),
+    h('small', null, [`${sc.killed} killed · ${sc.survived} survived`]),
+    undefinedScore && h('small', { class: 'warn' }, ['no valid killed/survived outcome']),
+  ]);
+}
+
 /** @param {RunSnapshot|null} s @param {(id:string)=>void} select @param {string|null} selected */
 export function render(s, select, selected) {
-  const stageIdx = s ? ORDER.indexOf(s.stage === 'rejected' || s.stage === 'inconclusive' ? 'verified' : s.stage) : -1;
-  fill(/** @type {Element} */ (document.getElementById('pipeline')), STAGES.map(([key, label], i) => {
-    const state = !s ? 'todo' : s.stage === 'failed' ? (i < stageIdx ? 'done' : 'todo')
-      : i + 1 < stageIdx ? 'done' : i + 1 === stageIdx ? 'active' : stageIdx === ORDER.length - 1 ? 'done' : 'todo';
-    return h('li', { class: state, 'data-stage': key }, [label]);
-  }));
+  const states = pipelineStates(s);
+  fill(/** @type {Element} */ (document.getElementById('pipeline')), STAGES.map(([key, label], i) =>
+    h('li', { class: states[i], 'data-stage': key }, [label])));
 
   // 1 baseline
   fill(body('p-baseline'), !s?.baseline ? [idle('Waiting for a run.')] : [
     outcomeBadge(s.baseline.outcome),
-    h('p', null, [`${s.baseline.summary ?? ''} · ${(s.baseline.duration_ms / 1000).toFixed(1)}s`]),
+    h('p', null, [`${s.baseline.summary ?? ''} · ${secs(s.baseline.duration_ms)}`]),
     h('p', { class: 'note' }, ['Green tests prove only what they cover.']),
   ]);
 
-  // 2 fan-out
+  // 2 fan-out (cards go pending -> terminal status; there is no "running" event)
   const muts = s?.mutations ?? [];
   fill(body('p-fanout'), !muts.length ? [idle('Mutations appear once Gemini has proposed them.')] : [
     h('div', { class: 'mgrid' }, muts.map((m) => {
       const b = h('button', {
         type: 'button', class: `mut ${m.status}${m.id === s?.survivor_id ? ' picked' : ''}${m.id === selected ? ' sel' : ''}`,
-        title: `${m.description}\n${m.hypothesis}`,
+        title: `${m.description}\n${m.hypothesis}`, 'data-mutation': m.id, 'data-status': m.status,
       }, [h('b', null, [m.id]), h('span', null, [m.status.replace('_', ' ')]), h('small', null, [m.description])]);
       b.addEventListener('click', () => select(m.id));
       return b;
@@ -85,39 +111,54 @@ export function render(s, select, selected) {
     ]) : null,
   ]);
 
-  // 4 test
+  // 4 generated test (model proposal) + how it was materialized (executed fact)
   const p = s?.proposal;
   fill(body('p-test'), !p ? [idle('Candidate test appears after survivor analysis.')] : [
     h('p', { class: 'note' }, ['Model proposal — not proof until executed.']),
-    h('p', null, [h('code', null, [p.target_file])]),
     h('pre', { class: 'code' }, [p.test_code]),
+    s?.candidate ? h('p', { class: 'note' }, [
+      tag('fact', 'FACT'), ' created as a separate isolated file: ', h('code', { 'data-candidate': '1' }, [s.candidate.candidate_path]),
+      ` (existing ${p.target_file} untouched)`,
+    ]) : h('p', { class: 'note' }, [`Target context: ${p.target_file}`]),
   ]);
 
   // 5 proof
   const v = s?.verification;
-  const verdict = s?.result?.verdict;
+  const runVerdict = s?.result?.verdict;
+  const verdict = runVerdict ?? v?.verdict;
   fill(body('p-proof'), !v ? [idle('Original and mutant executions appear here.')] : [
     h('div', { class: 'proof' }, [
-      h('div', null, ['original + candidate', outcomeBadge(v.original), h('small', null, [`${(v.original_duration_ms / 1000).toFixed(1)}s`])]),
-      h('div', null, ['mutant + candidate', outcomeBadge(v.mutant), h('small', null, [`${(v.mutant_duration_ms / 1000).toFixed(1)}s`])]),
+      h('div', null, ['original + candidate', outcomeBadge(v.original), h('small', null, [secs(v.original_duration_ms)])]),
+      h('div', null, ['mutant + candidate', outcomeBadge(v.mutant), h('small', null, [secs(v.mutant_duration_ms)])]),
     ]),
-    verdict ? h('div', { class: `verdict ${verdict}` }, [verdict.toUpperCase()]) : h('p', { class: 'idle' }, ['Awaiting deterministic verdict…']),
-    s?.result ? h('p', { class: 'note' }, [s.result.explanation]) : null,
+    verdict ? h('div', { class: `verdict ${verdict}`, 'data-verdict': verdict }, [verdict.toUpperCase()])
+      : h('p', { class: 'idle' }, ['Awaiting deterministic verdict…']),
+    runVerdict && v.verdict !== runVerdict
+      ? h('p', { class: 'note' }, [`Candidate verdict: ${v.verdict}. Run ended ${runVerdict}: ${s?.result?.reason ?? ''}`]) : null,
+    s?.result ? h('p', { class: 'note' }, [s.result.explanation]) : h('p', { class: 'note' }, [v.explanation]),
   ]);
 
-  // 6 score — values come straight from the authoritative snapshot
-  const a = s?.score_after; const b0 = s?.score_before;
+  // 6 score — every number here is copied from the backend (score_*, comparison); no arithmetic
+  const b0 = s?.score_before; const a = s?.score_after; const c = s?.comparison;
+  const dl = deltaLabel(c);
   fill(body('p-score'), !b0 ? [idle('Same-batch before/after score appears after re-scoring.')] : [
     h('div', { class: 'score' }, [
-      h('div', null, [h('small', null, ['before']), h('strong', null, [pct(b0.score)]), h('small', null, [`${b0.killed} killed · ${b0.survived} survived`])]),
-      h('span', { class: 'arrow' }, ['→']),
-      h('div', null, [h('small', null, ['after']), h('strong', { class: 'good' }, [a ? pct(a.score) : '…']), h('small', null, [a ? `${a.killed} killed · ${a.survived} survived` : ''])]),
+      scoreCell(b0, 'before', ''),
+      h('div', { class: 'delta' }, [h('span', { class: 'arrow' }, ['→']), h('b', { class: `dl ${dl.tone}`, 'data-delta': dl.text }, [dl.text])]),
+      a ? scoreCell(a, 'after', 'good') : h('div', null, [h('small', null, ['after']), h('strong', null, ['…'])]),
     ]),
-    h('p', { class: 'note' }, [`Excluded from score: ${b0.excluded} invalid/timeout/infra. Same mutation batch re-run with the verified test.`]),
+    c?.status === 'inconsistent'
+      ? h('p', { class: 'alert-inline', 'data-status': 'inconsistent' }, [`Re-score inconsistent — no improvement claimed. ${c.message}`])
+      : null,
+    h('p', { class: 'note' }, [
+      `Excluded from score (invalid/timeout/infra): ${b0.excluded} before` + (a ? ` · ${a.excluded} after` : '') +
+      '. Same mutation batch re-run with the verified test.',
+    ]),
   ]);
 
-  document.getElementById('run-meta')?.replaceChildren(
-    s ? `run ${s.run_id}${s.commit_sha ? ` · commit ${s.commit_sha}` : ''}` : '');
+  const meta = s ? [`run ${s.run_id}`, s.commit_sha ? `commit ${s.commit_sha}` : '',
+    s.batch_sha256 ? `batch ${s.batch_sha256.slice(7, 15)}` : ''].filter(Boolean).join(' · ') : '';
+  document.getElementById('run-meta')?.replaceChildren(meta);
 }
 
 /** @param {number} ms */

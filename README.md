@@ -166,6 +166,21 @@ python scripts/modal_spike.py
 
 This separation prevents provider credentials, quotas, or outages from making every development commit nondeterministic.
 
+## Run the demo UI
+
+```bash
+# Rehearsal: deterministic mock MODEL outputs, every execution is real local pytest (no credentials)
+PYTHONPATH=. python scripts/serve_demo.py --mock-models     # open http://127.0.0.1:8000/demo
+
+# Live: Gemini + Modal (needs GOOGLE_API_KEY in .env and `modal setup`)
+PYTHONPATH=. python -m uvicorn perjury.api:app --port 8000  # open http://127.0.0.1:8000/demo
+
+# Real-browser smoke of the UI against the real API (mock-model orchestration)
+PYTHONPATH=. python scripts/browser_smoke.py
+```
+
+`/demo?adapter=mock` is a separate, clearly labelled SIMULATED replay for UI development only.
+
 ## Demo fixture
 
 The bundled refund example intentionally lacks coverage for a premium customer outside the normal refund window. The target demonstration is for PERJURY to expose a semantic mutation affecting that behavior, propose the missing regression test, and prove the candidate through the deterministic two-sided invariant.
