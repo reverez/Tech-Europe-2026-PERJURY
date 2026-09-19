@@ -76,7 +76,7 @@ defensible before/after mutation score
 
 The repository currently contains the protocol scaffold, Gemini/PydanticAI agents, a minimal Modal primitive, FastAPI skeleton, refund fixture, smoke scripts, tests, CI, and the full implementation roadmap.
 
-The production loop is **not yet complete**. The semantic execution/verification foundation in **#8** is now closed and green; the next M0 contract task is **#4**, which defines the provider-independent WorkspaceSpec and baseline execution boundary.
+The production loop is **not yet complete**. The semantic execution foundation (**#8**) and provider-independent WorkspaceSpec/baseline layer (**#4**) are implemented; the next M0 task is **#5**, the deterministic safe mutation applicator.
 
 Development is gated by the parent epics:
 
@@ -92,6 +92,7 @@ perjury/
   contracts.py       typed model/execution protocol
   agent.py           Gemini/PydanticAI proposal stages
   modal_runner.py    Modal execution boundary
+  workspace.py       WorkspaceSpec snapshot + baseline layer
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/
