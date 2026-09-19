@@ -1,7 +1,7 @@
 import pytest
 
 from perjury.contracts import ExecutionOutcome, MutationStatus, mutation_status_for
-from perjury.modal_runner import classify_pytest_exit_code
+from perjury.modal_runner import RunSpec, _is_pytest_command, classify_pytest_exit_code, execute_pytest
 
 
 @pytest.mark.parametrize(
@@ -38,3 +38,33 @@ def test_mutation_status_projection(
     expected: MutationStatus,
 ) -> None:
     assert mutation_status_for(outcome) is expected
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        (("pytest", "-q"), True),
+        (("python", "-m", "pytest", "-q"), True),
+        (("python3", "-m", "pytest"), True),
+        (("python", "-c", "print('x')"), False),
+        (("bash", "-lc", "pytest"), False),
+        ((), False),
+    ],
+)
+def test_pytest_command_detection(
+    command: tuple[str, ...],
+    expected: bool,
+) -> None:
+    assert _is_pytest_command(command) is expected
+
+
+def test_execute_pytest_rejects_non_pytest_command_without_modal() -> None:
+    result = execute_pytest(
+        RunSpec(
+            mutation_id="M99",
+            command=("python", "-c", "raise SystemExit(1)"),
+        )
+    )
+
+    assert result.outcome is ExecutionOutcome.INVALID
+    assert result.exit_code is None
