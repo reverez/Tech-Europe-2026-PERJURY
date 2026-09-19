@@ -7,7 +7,6 @@ import modal
 
 from .contracts import ExecutionResult, MutationStatus
 
-
 # A persisted app can be used directly by Sandbox.create from local code.
 app = modal.App.lookup("perjury", create_if_missing=True)
 runtime = modal.Image.debian_slim(python_version="3.12").pip_install("pytest>=8.4")
