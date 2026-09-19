@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import shutil
 import tempfile
+import threading
 import time
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -56,18 +57,32 @@ class SandboxHandle(Protocol):
 SandboxFactory = Callable[..., SandboxHandle]
 
 
+_INIT_LOCK = threading.Lock()
+
+
 @lru_cache(maxsize=1)
-def _get_app() -> modal.App:
+def _get_app_unlocked() -> modal.App:
     """Resolve the persisted Modal app only when live execution begins."""
     return modal.App.lookup("perjury", create_if_missing=True)
 
 
+def _get_app() -> modal.App:
+    """Thread-safe: concurrent fan-out workers must not race the first lookup."""
+    with _INIT_LOCK:
+        return _get_app_unlocked()
+
+
 @lru_cache(maxsize=1)
-def _get_runtime() -> modal.Image:
+def _get_runtime_unlocked() -> modal.Image:
     """Construct the pinned hackathon runtime lazily."""
     return modal.Image.debian_slim(python_version="3.12").pip_install(
         "pytest==" + PYTEST_VERSION
     )
+
+
+def _get_runtime() -> modal.Image:
+    with _INIT_LOCK:
+        return _get_runtime_unlocked()
 
 
 def _create_sandbox(**kwargs: object) -> SandboxHandle:
