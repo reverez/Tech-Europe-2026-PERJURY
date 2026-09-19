@@ -25,6 +25,8 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-019 | Process output capture is bounded and carries explicit truncation metadata through evidence/API. | Accepted |
 | ADR-020 | Hackathon execution is standardized on Python 3.12.x and validated direct dependencies are pinned in `pyproject.toml`. | Accepted |
 | ADR-021 | Pytest Sandboxes block outbound network by default; future network access requires explicit WorkspaceSpec opt-in. | Accepted |
+| ADR-022 | Target execution receives only an explicit non-secret environment; host environment is never inherited implicitly. | Accepted |
+| ADR-023 | Primary execution outcome and cleanup/teardown errors are recorded separately. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -81,6 +83,14 @@ Local bootstrap, deterministic CI, and Modal target Python 3.12. Direct runtime/
 ## ADR-021 — Default-deny Sandbox network
 
 Target tests and generated tests are treated as untrusted execution. The bundled MVP does not need network access, so pytest Sandboxes set Modal's network blocking by default. If later target support genuinely requires network access, WorkspaceSpec must make that opt-in explicit and the evidence bundle must record it. Credentials are still never forwarded merely because network is enabled.
+
+## ADR-022 — Explicit sanitized execution environment
+
+WorkspaceSpec owns the environment passed to target execution. The default is empty/minimal; variables are opt-in, non-secret, serializable configuration. Arbitrary host process environment is never inherited into local or Modal target execution.
+
+## ADR-023 — Preserve primary outcome across cleanup
+
+The semantic result of the pytest command is primary evidence. Sandbox termination/cleanup is attempted independently and any teardown failure is recorded in dedicated cleanup evidence. A cleanup failure must not rewrite a completed PASS/TEST_FAIL/INVALID command into a different process outcome, though it can mark the overall run/evidence bundle operationally unhealthy.
 
 ## Changing a decision
 
