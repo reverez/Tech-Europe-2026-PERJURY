@@ -46,6 +46,25 @@ def minimal_spec(root: Path, **updates: object) -> WorkspaceSpec:
 
 
 @dataclass
+class MutatingExecutor:
+    target: Path
+
+    def execute(
+        self,
+        spec: WorkspaceSpec,
+        *,
+        execution_id: str,
+    ) -> ExecutionResult:
+        self.target.write_text("def value() -> int:\n    return 2\n", encoding="utf-8")
+        return ExecutionResult(
+            execution_id=execution_id,
+            outcome=ExecutionOutcome.PASS,
+            exit_code=0,
+            duration_ms=1,
+        )
+
+
+@dataclass
 class FakeExecutor:
     outcome: ExecutionOutcome
     exit_code: int | None
@@ -230,3 +249,30 @@ def test_refund_fixture_baseline_passes_through_local_executor() -> None:
     assert result.execution.exit_code == 0
     assert result.ready_for_mutation is True
     assert result.manifest_sha256.startswith("sha256:")
+
+
+def test_baseline_rejects_source_changed_during_execution(tmp_path: Path) -> None:
+    write_minimal_workspace(tmp_path)
+    spec = minimal_spec(tmp_path)
+
+    with pytest.raises(BaselineNotReadyError) as caught:
+        run_baseline(spec, MutatingExecutor(tmp_path / "app.py"))
+
+    result = caught.value.result
+    assert result.execution.outcome is ExecutionOutcome.PASS
+    assert result.manifest_sha256 != result.post_execution_manifest_sha256
+    assert result.ready_for_mutation is False
+
+
+def test_baseline_result_is_serializable_with_snapshot_identity(tmp_path: Path) -> None:
+    write_minimal_workspace(tmp_path)
+    spec = minimal_spec(tmp_path)
+    result = run_baseline(
+        spec,
+        FakeExecutor(outcome=ExecutionOutcome.PASS, exit_code=0),
+    )
+
+    payload = result.model_dump(mode="json")
+    assert payload["ready_for_mutation"] is True
+    assert payload["manifest_sha256"] == payload["post_execution_manifest_sha256"]
+    assert payload["execution"]["execution_id"] == "baseline:unit-workspace"
