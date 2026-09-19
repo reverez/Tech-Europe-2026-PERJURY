@@ -3,8 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
-from perjury.contracts import MutationProposal, WorkspaceSpec
+from perjury.contracts import AppliedMutation, MutationProposal, WorkspaceSpec
 from perjury.mutation import (
     MutationAnchorError,
     StaleSnapshotError,
@@ -270,6 +271,43 @@ def test_non_utf8_target_is_rejected(tmp_path: Path) -> None:
         )
 
 
+def test_binary_target_with_utf8_decodable_nul_is_rejected(tmp_path: Path) -> None:
+    (tmp_path / "binary.py").write_bytes(b"VALUE = 1\x00\n")
+    (tmp_path / "test_app.py").write_text(
+        "def test_ok() -> None:\n    assert True\n",
+        encoding="utf-8",
+    )
+    spec = spec_for(
+        tmp_path,
+        mutable_paths=("binary.py",),
+        context_paths=("test_app.py",),
+    )
+    baseline = run_baseline(spec, LocalPytestExecutor())
+
+    with pytest.raises(UnsupportedMutationTargetError, match="NUL bytes"):
+        apply_mutation(
+            spec,
+            baseline,
+            proposal(
+                file_path="binary.py",
+                original="VALUE = 1",
+                mutated="VALUE = 2",
+            ),
+        )
+
+
+def test_mutation_cannot_turn_text_target_into_binary_content(tmp_path: Path) -> None:
+    write_workspace(tmp_path)
+    spec, baseline = baseline_for(tmp_path)
+
+    with pytest.raises(UnsupportedMutationTargetError, match="result would contain NUL bytes"):
+        apply_mutation(
+            spec,
+            baseline,
+            proposal(mutated="return 2\x00"),
+        )
+
+
 def test_applied_mutation_evidence_is_serializable_and_stable(tmp_path: Path) -> None:
     write_workspace(tmp_path)
     spec, baseline = baseline_for(tmp_path)
@@ -282,3 +320,35 @@ def test_applied_mutation_evidence_is_serializable_and_stable(tmp_path: Path) ->
 
     assert first_payload == second_payload
     assert first_payload["base_snapshot_id"] == baseline.source_snapshot_id
+
+
+@pytest.mark.parametrize("target_path", ("../app.py", "/tmp/app.py", r"src\app.py"))
+def test_applied_mutation_contract_rejects_unsafe_target_path(target_path: str) -> None:
+    with pytest.raises(
+        ValidationError,
+        match="Repository paths|Unsafe repository-relative path",
+    ):
+        AppliedMutation(
+            mutation_id="M01",
+            base_snapshot_id="fixture:mutation-v1",
+            base_manifest_sha256=f"sha256:{'a' * 64}",
+            target_path=target_path,
+            original_sha256="b" * 64,
+            mutated_sha256="c" * 64,
+            mutated_manifest_sha256=f"sha256:{'d' * 64}",
+            diff="--- a/app.py\n+++ b/app.py\n",
+        )
+
+
+def test_applied_mutation_contract_requires_snapshot_identity() -> None:
+    with pytest.raises(ValidationError, match="at least 1 character"):
+        AppliedMutation(
+            mutation_id="M01",
+            base_snapshot_id="",
+            base_manifest_sha256=f"sha256:{'a' * 64}",
+            target_path="app.py",
+            original_sha256="b" * 64,
+            mutated_sha256="c" * 64,
+            mutated_manifest_sha256=f"sha256:{'d' * 64}",
+            diff="--- a/app.py\n+++ b/app.py\n",
+        )

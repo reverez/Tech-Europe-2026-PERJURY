@@ -154,7 +154,7 @@ Required controls:
 2. resolve paths and reject absolute paths, traversal, and symlink escape;
 3. mutations may target only the mutable implementation allowlist, never tests/context/excluded files;
 4. snapshot upload is manifest-driven and excludes secrets/runtime directories rather than copying the repository blindly;
-5. exact original snippet anchor must match once;
+5. mutation targets/results are UTF-8 text without NUL bytes, and the exact original snippet anchor must match once;
 6. source snapshot is immutable during a run;
 7. generated tests are created as new files in an allowed test directory inside an isolated candidate workspace; existing tests are not overwritten/appended;
 8. every applied change has a renderable diff;

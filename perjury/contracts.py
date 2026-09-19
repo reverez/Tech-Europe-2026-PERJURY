@@ -320,13 +320,18 @@ class MutationBatch(BaseModel):
 
 class AppliedMutation(BaseModel):
     mutation_id: str = Field(pattern=r"^M\d{2,}$")
-    base_snapshot_id: str
+    base_snapshot_id: str = Field(min_length=1, max_length=160)
     base_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     target_path: str
     original_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     mutated_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     mutated_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     diff: str = Field(min_length=1)
+
+    @field_validator("target_path")
+    @classmethod
+    def target_path_must_be_safe_relative(cls, value: str) -> str:
+        return _validate_repo_relative_path(value, allow_dot=False)
 
     @model_validator(mode="after")
     def mutation_evidence_must_show_a_real_change(self) -> AppliedMutation:

@@ -123,6 +123,19 @@ def _read_verified_file(root: Path, entry: SnapshotFile) -> bytes:
     return data
 
 
+def _decode_text_target(data: bytes, target_path: str) -> str:
+    if b"\x00" in data:
+        raise UnsupportedMutationTargetError(
+            f"Mutation target contains NUL bytes and is not supported text: {target_path!r}"
+        )
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise UnsupportedMutationTargetError(
+            f"Mutation target is not valid UTF-8 text: {target_path!r}"
+        ) from exc
+
+
 def _assert_baseline_identity(
     spec: WorkspaceSpec,
     baseline: BaselineResult,
@@ -198,12 +211,12 @@ def apply_mutation(
     entry = _manifest_entry(baseline.manifest, target_path)
     root = Path(spec.source_root).expanduser().resolve()
     target_bytes = _read_verified_file(root, entry)
-    try:
-        original_text = target_bytes.decode("utf-8")
-    except UnicodeDecodeError as exc:
+    original_text = _decode_text_target(target_bytes, target_path)
+
+    if "\x00" in proposal.mutated_snippet:
         raise UnsupportedMutationTargetError(
-            f"Mutation target is not valid UTF-8 text: {target_path!r}"
-        ) from exc
+            f"Mutation result would contain NUL bytes and is not supported text: {target_path!r}"
+        )
 
     matches = original_text.count(proposal.original_snippet)
     if matches != 1:
