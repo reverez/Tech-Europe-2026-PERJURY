@@ -7,7 +7,7 @@ from pathlib import PurePosixPath
 
 import modal
 
-from .contracts import ExecutionResult, MutationStatus
+from .contracts import ExecutionOutcome, ExecutionResult
 
 PYTEST_VERSION = "9.1.1"
 
@@ -34,13 +34,20 @@ class RunSpec:
     workspace: str = "/workspace"
 
 
-def classify_exit_code(code: int) -> MutationStatus:
-    # Temporary mutation projection until #8 lands the richer execution taxonomy.
+def classify_pytest_exit_code(code: int) -> ExecutionOutcome:
+    """Map pytest process exits to PERJURY semantics.
+
+    Pytest reserves:
+    0 pass, 1 test failures, 2 interruption, 3 internal error,
+    4 command/usage error, and 5 no tests collected.
+    """
     if code == 0:
-        return MutationStatus.SURVIVED
+        return ExecutionOutcome.PASS
     if code == 1:
-        return MutationStatus.KILLED
-    return MutationStatus.INVALID
+        return ExecutionOutcome.TEST_FAIL
+    if code in {2, 4, 5}:
+        return ExecutionOutcome.INVALID
+    return ExecutionOutcome.INFRA_ERROR
 
 
 def _remote_path(workspace: str, relative_path: str) -> str:
@@ -51,20 +58,25 @@ def _remote_path(workspace: str, relative_path: str) -> str:
 
 
 def execute_pytest(spec: RunSpec) -> ExecutionResult:
-    """Run one mutation candidate in an isolated Modal Sandbox.
+    """Run one pytest command in an isolated Modal Sandbox.
 
     Modal resolution is deliberately lazy so importing PERJURY remains offline-safe.
-    Commands remain structured argv values; workdir is supplied directly to
-    Sandbox.exec rather than constructing a shell command.
+    Commands remain structured argv values and execute with Modal's workdir option.
     """
     started = time.perf_counter()
+    sandbox = None
+    outcome = ExecutionOutcome.INFRA_ERROR
+    exit_code = None
+    stdout = ""
+    stderr = ""
 
-    sandbox = modal.Sandbox.create(
-        app=_get_app(),
-        image=_get_runtime(),
-        timeout=120,
-    )
     try:
+        sandbox = modal.Sandbox.create(
+            app=_get_app(),
+            image=_get_runtime(),
+            timeout=120,
+        )
+
         for relative_path, contents in spec.workspace_files.items():
             sandbox.filesystem.write_text(
                 contents,
@@ -79,14 +91,31 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         stdout = process.stdout.read()
         stderr = process.stderr.read()
         process.wait()
-        code = process.returncode
+        exit_code = process.returncode
+        outcome = classify_pytest_exit_code(exit_code)
+    except modal.exception.TimeoutError as exc:
+        outcome = ExecutionOutcome.TIMEOUT
+        stderr = str(exc)
+    except modal.Error as exc:
+        outcome = ExecutionOutcome.INFRA_ERROR
+        stderr = str(exc)
+    except ValueError as exc:
+        outcome = ExecutionOutcome.INVALID
+        stderr = str(exc)
     finally:
-        sandbox.terminate(wait=True)
+        if sandbox is not None:
+            try:
+                sandbox.terminate(wait=True)
+            except modal.Error as exc:
+                outcome = ExecutionOutcome.INFRA_ERROR
+                exit_code = None
+                cleanup_error = f"Sandbox cleanup failed: {exc}"
+                stderr = f"{stderr}\n{cleanup_error}".strip()
 
     return ExecutionResult(
         mutation_id=spec.mutation_id,
-        status=classify_exit_code(code),
-        exit_code=code,
+        outcome=outcome,
+        exit_code=exit_code,
         stdout=stdout,
         stderr=stderr,
         duration_ms=int((time.perf_counter() - started) * 1000),
