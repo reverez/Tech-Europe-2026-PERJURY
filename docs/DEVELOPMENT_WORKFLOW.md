@@ -88,7 +88,7 @@ Safe parallelism is encouraged only where contracts are stable.
 | Execution | #4–#8 | `contracts.py`, `modal_runner.py` |
 | Agent pipeline | #9–#14 | `contracts.py`, `agent.py` |
 | Orchestration/API | #15, #17, #19 | run/event contracts, `api.py` |
-| Demo UI | #18 | frontend files/API schema |
+| Demo UI | #18 | zero-build static frontend/API schema |
 | Validation/docs | #20, #23, #24 | scripts, README, docs |
 
 Rules:
