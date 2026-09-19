@@ -7,7 +7,7 @@ from pathlib import PurePosixPath
 
 import modal
 
-from .contracts import ExecutionOutcome, ExecutionResult
+from .contracts import ExecutionOutcome, ExecutionResult, execution_outcome_for_pytest_exit
 
 PYTEST_VERSION = "9.1.1"
 
@@ -46,19 +46,8 @@ def _is_pytest_command(command: tuple[str, ...]) -> bool:
 
 
 def classify_pytest_exit_code(code: int) -> ExecutionOutcome:
-    """Map pytest process exits to PERJURY semantics.
-
-    Pytest reserves:
-    0 pass, 1 test failures, 2 interruption, 3 internal error,
-    4 command/usage error, and 5 no tests collected.
-    """
-    if code == 0:
-        return ExecutionOutcome.PASS
-    if code == 1:
-        return ExecutionOutcome.TEST_FAIL
-    if code in {2, 4, 5}:
-        return ExecutionOutcome.INVALID
-    return ExecutionOutcome.INFRA_ERROR
+    """Compatibility wrapper around the shared contract mapping."""
+    return execution_outcome_for_pytest_exit(code)
 
 
 def _remote_path(workspace: str, relative_path: str) -> str:
