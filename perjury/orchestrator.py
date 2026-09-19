@@ -349,6 +349,8 @@ def run_perjury(
     on_event: Callable[[RunEvent], None] | None = None,
     clock: Callable[[], float] = time.perf_counter,
     cancel_event: threading.Event | None = None,
+    commit_sha: str | None = None,
+    wall_clock: Callable[[], float] = time.time,
 ) -> RunResult:
     """Run the whole loop once and return a typed terminal result; never raises for run outcomes."""
     config = config or RunConfig()
@@ -366,7 +368,14 @@ def run_perjury(
     context_sha: str | None = None
 
     try:
-        run.emit(RunEventType.RUN_STARTED, {"workspace_id": spec.workspace_id})
+        run.emit(
+            RunEventType.RUN_STARTED,
+            {
+                "workspace_id": spec.workspace_id,
+                "started_at_ms": int(wall_clock() * 1000),
+                "commit_sha": commit_sha,
+            },
+        )
 
         with run.stage_scope(RunStage.BASELINE) as st:
             try:
@@ -613,6 +622,8 @@ def run_perjury(
                     "delta": comparison.delta,
                     "direction": comparison.direction,
                     "batch_sha256": comparison.batch_sha256,
+                    "newly_killed_ids": list(comparison.newly_killed_ids),
+                    "newly_survived_ids": list(comparison.newly_survived_ids),
                     "message": rescore.message,
                 },
                 mutation_id=selected_id,
