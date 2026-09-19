@@ -32,6 +32,7 @@ class RunSpec:
     command: tuple[str, ...] = ("pytest", "-q")
     workspace_files: dict[str, str] = field(default_factory=dict)
     workspace: str = "/workspace"
+    env: dict[str, str] = field(default_factory=dict)
 
 
 def _is_pytest_command(command: tuple[str, ...]) -> bool:
@@ -96,6 +97,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
     exit_code = None
     stdout = ""
     stderr = ""
+    cleanup_error = None
 
     try:
         sandbox = modal.Sandbox.create(
@@ -112,6 +114,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
             *spec.command,
             workdir=spec.workspace if spec.workspace_files else None,
             timeout=120,
+            env=spec.env,
         )
         stdout = process.stdout.read()
         stderr = process.stderr.read()
@@ -132,10 +135,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
             try:
                 sandbox.terminate(wait=True)
             except modal.Error as exc:
-                outcome = ExecutionOutcome.INFRA_ERROR
-                exit_code = None
                 cleanup_error = f"Sandbox cleanup failed: {exc}"
-                stderr = f"{stderr}\n{cleanup_error}".strip()
 
     return ExecutionResult(
         mutation_id=spec.mutation_id,
@@ -144,4 +144,5 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         stdout=stdout,
         stderr=stderr,
         duration_ms=int((time.perf_counter() - started) * 1000),
+        cleanup_error=cleanup_error,
     )
