@@ -49,3 +49,23 @@ def test_mutation_status_is_derived_from_execution_outcome() -> None:
     )
 
     assert result.status is MutationStatus.KILLED
+
+
+def test_verified_evidence_cannot_be_labelled_rejected() -> None:
+    evidence = VerificationEvidence(
+        mutation_id="M01",
+        original_outcome=ExecutionOutcome.PASS,
+        mutant_outcome=ExecutionOutcome.TEST_FAIL,
+        original_exit_code=0,
+        mutant_exit_code=1,
+        original_duration_ms=10,
+        mutant_duration_ms=10,
+    )
+
+    with pytest.raises(ValidationError):
+        HardeningResult(
+            mutation_id="M01",
+            verdict="rejected",
+            evidence=evidence,
+            explanation="contradictory verdict",
+        )
