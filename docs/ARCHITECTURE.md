@@ -193,13 +193,15 @@ Each run should retain enough structured evidence to reconstruct what happened:
 - final `HardeningResult`;
 - mutation score and excluded invalid/error counts.
 
-Secrets and credentials must never be included in exported evidence.
+Secrets and credentials must never be included in exported evidence. Sanitized bundles are persisted under the gitignored `.perjury/runs/<run_id>/evidence.json` path for the hackathon; no database is required.
 
 ## 10. API and demo boundary
 
 The core pipeline must be callable without the UI.
 
-The default demo transport is SSE because progress is primarily server-to-client. The API should expose run creation, state/result retrieval, event streaming, and preflight/health information.
+The default demo transport is same-origin SSE because progress is primarily server-to-client. The API uses an in-memory single-process run registry and accepts only one active hardening run for the MVP. The API exposes run creation, state/result retrieval, event streaming, and health information; explicit external-service preflight lives in `scripts/preflight.py`.
+
+The MVP UI is zero-build local HTML/CSS/vanilla JavaScript served by FastAPI; it does not require a Node toolchain or external CDN.
 
 The UI distinguishes:
 1. **executed fact** — pytest/Modal results and deterministic verification;
