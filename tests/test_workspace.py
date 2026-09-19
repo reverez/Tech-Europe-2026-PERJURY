@@ -275,6 +275,8 @@ def test_baseline_result_is_serializable_with_snapshot_identity(tmp_path: Path) 
     payload = result.model_dump(mode="json")
     assert payload["ready_for_mutation"] is True
     assert payload["manifest_sha256"] == payload["post_execution_manifest_sha256"]
+    assert payload["manifest"]["manifest_sha256"] == payload["manifest_sha256"]
+    assert payload["manifest"]["workspace_id"] == "unit-workspace"
     assert payload["execution"]["execution_id"] == "baseline:unit-workspace"
 
 
