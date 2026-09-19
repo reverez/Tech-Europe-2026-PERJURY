@@ -66,6 +66,10 @@ original + candidate  => PASS
 mutant   + candidate  => TEST_FAIL
      ↓
 deterministic verified hardening result
+     ↓
+rerun the same mutation batch with the verified test
+     ↓
+defensible before/after mutation score
 ```
 
 ## Current implementation status
