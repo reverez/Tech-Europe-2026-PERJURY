@@ -334,3 +334,30 @@ code,pre{font-family:var(--mono)}
   .world .badge{font-size:1.5rem}
   .rail li{font-size:.84rem}
 }
+
+
+/* ---------- final demo interactions ---------- */
+.filterbar{display:flex;align-items:center;gap:.45rem;margin:0 0 .8rem;flex-wrap:wrap}
+.filter-label{font-size:.82rem;font-weight:650;color:var(--mute);margin-right:.15rem}
+.filter-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .65rem;border:1px solid var(--b-subtle);border-radius:var(--round);background:var(--surface);color:var(--fg-2);font:600 .84rem/1 var(--sans);cursor:pointer;transition:background var(--d1) var(--ease),border-color var(--d1) var(--ease),color var(--d1) var(--ease),box-shadow var(--d1) var(--ease)}
+.filter-btn:hover{background:var(--hover);color:var(--fg);border-color:var(--b-normal)}
+.filter-btn.on{background:#eef0ff;color:#3f46b8;border-color:#cdd2ff;box-shadow:0 0 0 2px rgba(91,98,230,.08)}
+.filter-count{display:inline-grid;place-items:center;min-width:1.35rem;height:1.35rem;padding:0 .3rem;border-radius:var(--round);background:rgba(17,24,39,.06);font:700 .74rem/1 var(--mono);color:inherit}
+.filter-empty{margin:.8rem 0 0;color:var(--mute);font-size:.9rem}
+
+.investigation-head{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;padding:.75rem 0 .9rem;border-bottom:1px solid var(--b-subtle);margin-bottom:1rem}
+.ih-main{display:flex;align-items:baseline;gap:.7rem;min-width:0}
+.ih-id{flex:none;font:750 .95rem/1 var(--mono);color:#4f56c9;background:#eef0ff;border:1px solid #d8dcff;border-radius:var(--r1);padding:.3rem .45rem}
+.ih-main strong{font-size:1.05rem;line-height:1.35;overflow-wrap:anywhere}
+.ih-meta{display:flex;align-items:center;gap:.55rem;flex-wrap:wrap}
+.ih-meta code{font-size:.82rem;color:var(--mute)}
+
+.proof-actions{display:flex;justify-content:center;margin-top:.9rem}
+.secondary{display:inline-flex;align-items:center;justify-content:center;min-height:2.35rem;padding:0 .95rem;border:1px solid var(--b-normal);border-radius:var(--r2);background:var(--surface);color:var(--fg);font:650 .88rem/1 var(--sans);cursor:pointer;box-shadow:0 1px 2px rgba(17,24,39,.05);transition:background var(--d1) var(--ease),border-color var(--d1) var(--ease),box-shadow var(--d1) var(--ease)}
+.secondary:hover{background:var(--hover);border-color:var(--b-strong);box-shadow:0 2px 8px rgba(17,24,39,.08)}
+.evidence-action::after{content:"↘";margin-left:.5rem;font-size:.9rem;color:var(--derived)}
+
+@media (max-width:900px){
+  .investigation-head{align-items:flex-start}
+  .ih-main{flex:1 1 100%}
+}
