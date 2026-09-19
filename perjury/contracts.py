@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import re
 from enum import StrEnum
 from pathlib import PurePosixPath
@@ -250,12 +251,29 @@ class SnapshotFile(BaseModel):
     size_bytes: int = Field(ge=0)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
 
+    @field_validator("path")
+    @classmethod
+    def path_must_be_safe_relative(cls, value: str) -> str:
+        return _validate_repo_relative_path(value, allow_dot=False)
+
+
+def snapshot_manifest_sha256(files: tuple[SnapshotFile, ...]) -> str:
+    digest = hashlib.sha256()
+    for file in files:
+        digest.update(file.path.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(file.size_bytes).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(bytes.fromhex(file.sha256))
+        digest.update(b"\0")
+    return f"sha256:{digest.hexdigest()}"
+
 
 class SnapshotManifest(BaseModel):
     workspace_id: str
     source_snapshot_id: str
     manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
-    files: tuple[SnapshotFile, ...]
+    files: tuple[SnapshotFile, ...] = Field(min_length=1)
     total_bytes: int = Field(ge=0)
 
     @computed_field
@@ -265,10 +283,23 @@ class SnapshotManifest(BaseModel):
 
     @model_validator(mode="after")
     def totals_must_match_files(self) -> SnapshotManifest:
-        expected = sum(file.size_bytes for file in self.files)
-        if self.total_bytes != expected:
+        paths = [file.path for file in self.files]
+        if paths != sorted(paths):
+            raise ValueError("Snapshot files must be ordered lexicographically by path.")
+        if len(paths) != len(set(paths)):
+            raise ValueError("Snapshot files must have unique paths.")
+
+        expected_total = sum(file.size_bytes for file in self.files)
+        if self.total_bytes != expected_total:
             raise ValueError(
-                f"Snapshot total_bytes={self.total_bytes} does not match file sum={expected}."
+                f"Snapshot total_bytes={self.total_bytes} does not match "
+                f"file sum={expected_total}."
+            )
+
+        expected_hash = snapshot_manifest_sha256(self.files)
+        if self.manifest_sha256 != expected_hash:
+            raise ValueError(
+                f"Snapshot manifest hash is inconsistent; expected {expected_hash}."
             )
         return self
 
