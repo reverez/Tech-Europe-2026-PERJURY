@@ -1,17 +1,29 @@
 from __future__ import annotations
 
-import shlex
 import time
 from dataclasses import dataclass, field
+from functools import lru_cache
 from pathlib import PurePosixPath
 
 import modal
 
 from .contracts import ExecutionResult, MutationStatus
 
-# A persisted app can be used directly by Sandbox.create from local code.
-app = modal.App.lookup("perjury", create_if_missing=True)
-runtime = modal.Image.debian_slim(python_version="3.12").pip_install("pytest>=8.4")
+PYTEST_VERSION = "9.1.1"
+
+
+@lru_cache(maxsize=1)
+def _get_app() -> modal.App:
+    """Resolve the persisted Modal app only when live execution begins."""
+    return modal.App.lookup("perjury", create_if_missing=True)
+
+
+@lru_cache(maxsize=1)
+def _get_runtime() -> modal.Image:
+    """Construct the pinned hackathon runtime lazily."""
+    return modal.Image.debian_slim(python_version="3.12").pip_install(
+        f"pytest==${PYTEST_VERSION}"
+    )
 
 
 @dataclass(slots=True)
@@ -23,7 +35,7 @@ class RunSpec:
 
 
 def classify_exit_code(code: int) -> MutationStatus:
-    # pytest: 0 = all tests passed, 1 = tests failed.
+    # Temporary mutation projection until #8 lands the richer execution taxonomy.
     if code == 0:
         return MutationStatus.SURVIVED
     if code == 1:
@@ -41,15 +53,15 @@ def _remote_path(workspace: str, relative_path: str) -> str:
 def execute_pytest(spec: RunSpec) -> ExecutionResult:
     """Run one mutation candidate in an isolated Modal Sandbox.
 
-    If workspace_files are supplied, they are materialized under /workspace and
-    the command is executed from that directory. This is the core execution
-    boundary used by the mutation and two-sided verification loops.
+    Modal resolution is deliberately lazy so importing PERJURY remains offline-safe.
+    Commands remain structured argv values; workdir is supplied directly to
+    Sandbox.exec rather than constructing a shell command.
     """
     started = time.perf_counter()
 
     sandbox = modal.Sandbox.create(
-        app=app,
-        image=runtime,
+        app=_get_app(),
+        image=_get_runtime(),
         timeout=120,
     )
     try:
@@ -59,12 +71,11 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
                 _remote_path(spec.workspace, relative_path),
             )
 
-        if spec.workspace_files:
-            shell_command = f"cd {shlex.quote(spec.workspace)} && {shlex.join(spec.command)}"
-            process = sandbox.exec("bash", "-lc", shell_command)
-        else:
-            process = sandbox.exec(*spec.command)
-
+        process = sandbox.exec(
+            *spec.command,
+            workdir=spec.workspace if spec.workspace_files else None,
+            timeout=120,
+        )
         stdout = process.stdout.read()
         stderr = process.stderr.read()
         process.wait()
