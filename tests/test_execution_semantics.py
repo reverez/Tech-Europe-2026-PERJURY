@@ -1,7 +1,12 @@
 import pytest
 
 from perjury.contracts import ExecutionOutcome, MutationStatus, mutation_status_for
-from perjury.modal_runner import RunSpec, _is_pytest_command, classify_pytest_exit_code, execute_pytest
+from perjury.modal_runner import (
+    RunSpec,
+    _is_pytest_command,
+    classify_pytest_exit_code,
+    execute_pytest,
+)
 
 
 @pytest.mark.parametrize(
