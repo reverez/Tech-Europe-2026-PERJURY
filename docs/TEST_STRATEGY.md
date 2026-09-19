@@ -60,12 +60,19 @@ Only **PASS(original)** plus **TEST_FAIL(mutant)** can verify a generated regres
 - possibly equivalent survivor path.
 
 ### Generated test
-- safe target path;
+- safe contextual target path;
+- generated candidate uses a new unique file and never overwrites/appends existing tests;
 - invalid syntax;
 - collection failure;
 - original regression rejection;
 - verified original-pass/mutant-test-fail case;
 - mutant infra failure never verifies.
+
+### Re-score
+- same MutationBatch identity before/after;
+- verified selected mutant becomes killed or run is flagged inconsistent;
+- invalid/timeout/infra exclusions do not enter the denominator;
+- exact post-score is not computed from assumptions about previously killed mutants.
 
 ### Orchestrator
 - happy path;
@@ -95,7 +102,8 @@ The initial tests intentionally omit the premium-customer-outside-window case. A
 4. candidate test is materialized;
 5. candidate passes against original;
 6. candidate produces TEST_FAIL against mutant;
-7. final hardening result is verified.
+7. final hardening result is verified;
+8. the same batch is rerun with the candidate and the before/after score is recorded.
 
 This is a test of PERJURY's pipeline, not of Gemini quality.
 
