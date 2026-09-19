@@ -47,6 +47,33 @@ Every merge must satisfy:
 
 Live Gemini/Modal tests are not required on every commit. They are required at the milestone gates that depend on those services.
 
+
+## 3A. Main-branch and multi-agent protocol
+
+GitHub currently reports `main` as **unprotected** and the repository has no ruleset. Until branch protection is enabled, the following process is mandatory by convention:
+
+### Single-writer mode
+Direct-to-`main` work is acceptable only when exactly one implementation writer is active. Every write must:
+- re-fetch the target file immediately before mutation;
+- use the current blob SHA so stale writes fail rather than overwrite;
+- let the deterministic CI run finish before the next dependency gate is declared complete;
+- stop and re-audit if a different writer advances `main`.
+
+### Multi-agent mode
+When more than one coding agent/person is active:
+- each agent uses `issue-<number>-<slug>` or `audit-<slug>` branches;
+- shared contracts (`contracts.py`, run/event schemas, `modal_runner.py`) have one active owner at a time;
+- no dependent branch merges until its blocking issue is green on `main`;
+- branches rebase/update from the dependency's merged SHA before merge;
+- the newest green CI result on the intended head is the only authoritative deterministic signal.
+
+### Collision rule
+If `main` advances between read and write, re-read and reconcile. Never force-update shared files from stale content.
+
+### Recommended repository setting
+When convenient, enable branch protection/rulesets for `main` requiring the `deterministic-ci / checks` status before merge. The current connector cannot configure repository administration settings, so this remains a manual GitHub setting.
+
+
 ## 4. Dependency discipline
 
 An issue may start early for research or scaffolding, but it must not merge against an unstable upstream contract.
