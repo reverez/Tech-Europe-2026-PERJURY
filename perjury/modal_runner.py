@@ -128,7 +128,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         outcome = ExecutionOutcome.INFRA_ERROR
         stderr = str(exc)
     except ValueError as exc:
-        outcome = ExecutionOutcome.INVALID
+        outcome = ExecutionOutcome.INFRA_ERROR
         stderr = str(exc)
     finally:
         if sandbox is not None:
