@@ -4,7 +4,7 @@ set -Eeuo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-echo "== PERJURY bootstrap =="
+echo "== PERJURY deterministic bootstrap =="
 echo "repo: $ROOT"
 
 need() {
@@ -16,12 +16,6 @@ need() {
 
 need python3
 need git
-
-PYTHON_VERSION="$(python3 - <<'PY'
-import sys
-print(f"{sys.version_info.major}.{sys.version_info.minor}")
-PY
-)"
 
 python3 - <<'PY'
 import sys
@@ -52,30 +46,15 @@ else
 fi
 
 echo
-echo "Authenticating Modal..."
-if ! command -v modal >/dev/null 2>&1; then
-  echo "ERROR: modal CLI missing after install" >&2
-  exit 1
-fi
-modal setup
-
-echo
-echo "Installing Modal agent skills..."
-modal skills install --global || {
-  echo "WARNING: Modal skills install failed; continuing because it is not required for runtime."
-}
-
-echo
-echo "Running local test suite..."
+echo "Running deterministic local tests..."
 pytest -q
 
 echo
-echo "Running Modal concurrency spike..."
-python scripts/modal_spike.py
-
-echo
 echo "Bootstrap complete."
+echo "External services are deliberately NOT invoked by bootstrap."
 echo "Next:"
-echo "  1) Put GOOGLE_API_KEY in .env"
-echo "  2) Run: python scripts/gemini_smoke.py"
-echo "  3) Then continue with issue #2 (end-to-end hardening loop)"
+echo "  1) Complete M0 quality gate work in issue #22 (ruff + CI)."
+echo "  2) Put GOOGLE_API_KEY in .env, then run: python scripts/gemini_smoke.py"
+echo "  3) Authenticate Modal separately with: modal setup"
+echo "  4) Run the Modal smoke separately with: python scripts/modal_spike.py"
+echo "  5) Follow parent epic #1 and docs/IMPLEMENTATION_PLAN.md"
