@@ -76,7 +76,7 @@ defensible before/after mutation score
 
 The repository currently contains the protocol scaffold, Gemini/PydanticAI agents, a minimal Modal primitive, FastAPI skeleton, refund fixture, smoke scripts, tests, CI, and the full implementation roadmap.
 
-The production loop is **not yet complete**. In particular, issue **#8** is the correctness blocker that replaces raw non-zero-exit reasoning with semantic execution outcomes before the verification path is considered complete.
+The production loop is **not yet complete**. The semantic execution/verification foundation in **#8** is now closed and green; the next M0 contract task is **#4**, which defines the provider-independent WorkspaceSpec and baseline execution boundary.
 
 Development is gated by the parent epics:
 
