@@ -28,13 +28,13 @@ Important known gaps remain intentionally tracked as issues. The code should not
 Issues, in required order:
 
 1. **#22** — deterministic local + CI quality gate
-2. **#4** — WorkspaceSpec and baseline runner
-3. **#8** — semantic execution taxonomy and verdict semantics
+2. **#8** — semantic execution taxonomy and verdict semantics
+3. **#4** — WorkspaceSpec and baseline runner
 4. **#5** — deterministic safe mutation applicator
 5. **#6** — real workspace materialization in Modal
 6. **#7** — bounded concurrent mutation fan-out
 
-#4 and #8 should be coordinated because the baseline result consumes the semantic execution contract.
+#8 defines the semantic execution contract; #4 consumes it. This removes any circular contract dependency.
 
 ### M0 exit gate
 
@@ -132,9 +132,11 @@ Issues:
 ```text
 #22
   ↓
+#8
+  ↓
 #4 ─────→ #9
  ↓         ↓
-#8       #10
+#5       #10
  ↓         ↓
 #5       #11
  ↓         ↓
