@@ -17,6 +17,7 @@ from fastapi.responses import StreamingResponse
 
 from .orchestrator import RunEvent, RunResult
 from .runs import ApiError, RunConflictError, RunCreated, RunManager, RunRecord, RunSnapshot
+from .ui import mount_ui
 
 POLL_SECONDS = 0.05
 KEEPALIVE_SECONDS = 15.0
@@ -169,6 +170,7 @@ def create_app(manager: RunManager | None = None) -> FastAPI:
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
+    mount_ui(api)  # zero-build demo UI at /demo and /ui (#18); API routes above stay authoritative
     return api
 
 

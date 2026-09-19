@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PERJURY</title>
+<link rel="stylesheet" href="/ui/styles.css">
+</head>
+<body>
+<div id="sim-banner" class="sim-banner" hidden>SIMULATED — mock adapter, not a real run. No Gemini/Modal execution is happening.</div>
+<header class="top">
+  <div class="brand"><h1>PERJURY</h1><p>Your CI is green. PERJURY finds what your tests never proved.</p></div>
+  <div class="controls">
+    <div class="clock" aria-live="off"><span id="clock">0:00</span><div class="budget"><i id="budget-bar"></i></div><small>2:00 budget</small></div>
+    <button id="cta" class="cta" type="button">Run PERJURY</button>
+  </div>
+</header>
+<div class="legend" aria-label="Legend">
+  <span class="tag fact">FACT</span> executed by pytest / Modal
+  <span class="tag model">MODEL</span> Gemini proposal, not proof
+  <span class="tag derived">DERIVED</span> computed metric
+</div>
+<div id="alert" class="alert" role="alert" hidden></div>
+<ol id="pipeline" class="pipeline" aria-label="Pipeline stages"></ol>
+<main class="grid">
+  <section id="p-baseline" class="panel"><h2>1 · Baseline <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-fanout" class="panel wide"><h2>2 · Mutation fan-out <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-survivor" class="panel wide"><h2>3 · Surviving mutant <span class="tag fact">diff</span> <span class="tag model">explanation</span></h2><div class="body"></div></section>
+  <section id="p-test" class="panel"><h2>4 · Generated test <span class="tag model">MODEL</span></h2><div class="body"></div></section>
+  <section id="p-proof" class="panel"><h2>5 · Proof <span class="tag fact">FACT</span></h2><div class="body"></div></section>
+  <section id="p-score" class="panel"><h2>6 · Mutation score <span class="tag derived">DERIVED</span></h2><div class="body"></div></section>
+</main>
+<footer class="foot"><span id="run-meta"></span></footer>
+<script type="module" src="/ui/app.js"></script>
+</body>
+</html>
