@@ -22,7 +22,7 @@ def _get_app() -> modal.App:
 def _get_runtime() -> modal.Image:
     """Construct the pinned hackathon runtime lazily."""
     return modal.Image.debian_slim(python_version="3.12").pip_install(
-        f"pytest==${PYTEST_VERSION}"
+        "pytest==" + PYTEST_VERSION
     )
 
 
