@@ -41,6 +41,7 @@ Only **PASS(original)** plus **TEST_FAIL(mutant)** can verify a generated regres
 - required IDs/paths/statuses validated.
 
 ### Workspace/path safety
+- source manifest identity before/after baseline execution;
 - normal repository-relative path;
 - absolute path rejection;
 - `../` traversal rejection;
@@ -50,10 +51,13 @@ Only **PASS(original)** plus **TEST_FAIL(mutant)** can verify a generated regres
 - secret/runtime directories absent from snapshot manifest;
 - snapshot file-count/byte limits;
 - network policy defaults to blocked;
+- explicit target environment does not inherit arbitrary host variables;
 - missing/ambiguous snippet anchor rejection;
 - original workspace remains unchanged.
 
 ### Execution mapping
+- real provider-independent refund baseline passes locally;
+- real local TEST_FAIL and no-tests INVALID classifications;
 - pytest 0/1/2/3/4/5;
 - timeout;
 - bootstrap/install/provider failure;
