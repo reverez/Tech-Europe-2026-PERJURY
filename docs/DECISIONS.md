@@ -18,6 +18,9 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-012 | A surviving mutant is a potential test gap, not automatically a production bug. | Accepted |
 | ADR-013 | Generated candidate tests are created as new files in isolated workspaces; existing user tests are never overwritten/appended. | Accepted |
 | ADR-014 | Exact before/after mutation-score claims require rerunning the same validated mutation batch with the verified candidate. | Accepted |
+| ADR-015 | Demo progress uses same-origin SSE with an in-memory single-process run registry; only one active run is supported. | Accepted |
+| ADR-016 | The MVP UI is zero-build local HTML/CSS/vanilla JS served by FastAPI; no Node toolchain or CDN is required. | Accepted |
+| ADR-017 | Sanitized evidence is persisted under gitignored `.perjury/runs/<run_id>/evidence.json`; no database is introduced. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -46,6 +49,18 @@ The model's target test path is contextual input, not arbitrary write authority.
 ## ADR-014 — Mutation-score comparison
 
 PERJURY does not claim a precise post-hardening score by assuming previously killed mutants remain killed. For the small 6–10-mutant MVP batch, the verified candidate is applied and the same validated batch is rerun. Invalid/timeouts/errors remain excluded from the denominator and visible in evidence.
+
+## ADR-015 — API/event runtime
+
+The hackathon demo is a single-user flow. FastAPI owns an in-memory run registry, accepts at most one active run, and streams one-way progress using SSE. This avoids persistence, synchronization, WebSocket, and CORS complexity that does not improve the judging path.
+
+## ADR-016 — Frontend stack
+
+The demo is one screen with one primary action. A zero-build same-origin frontend is sufficient and reduces failure modes. If a later issue proves a concrete capability cannot be delivered this way, that evidence is required before adding a Node build chain.
+
+## ADR-017 — Evidence persistence
+
+Active state is in memory; a sanitized JSON evidence bundle is written locally for rehearsal/debugging/final submission evidence. The runtime artifact directory is gitignored, and credentials must be removed before serialization.
 
 ## Changing a decision
 
