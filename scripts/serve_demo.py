@@ -17,7 +17,7 @@ import uvicorn
 from _mock_models import MockAnalyzer, MockGenerator
 from dotenv import load_dotenv
 
-from perjury.api import _commit_sha, app, create_app
+from perjury.api import _commit_sha, app, create_app, default_evidence_store
 from perjury.canonical import CanonicalRefundPlanner
 from perjury.orchestrator import run_perjury
 from perjury.runs import RunManager
@@ -40,7 +40,7 @@ def mock_app():
             commit_sha=_commit_sha(),
         )
 
-    return create_app(RunManager(execute))
+    return create_app(RunManager(execute, evidence=default_evidence_store()))
 
 
 def main() -> None:

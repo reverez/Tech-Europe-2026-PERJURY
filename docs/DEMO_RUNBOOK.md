@@ -12,22 +12,36 @@ Confirm:
 - Modal authentication is valid;
 - bundled refund fixture baseline is green.
 
-Once #20 is implemented, run the required preflight entrypoint:
+Run the required preflight entrypoint (about 10 s once the Modal image is warm; the first run after a
+Modal image change can take minutes while the image builds, which is exactly why you run it early):
 
 ```bash
-python scripts/preflight.py
+PYTHONPATH=. python scripts/preflight.py        # exit code 0 only when every check passes
 ```
 
-Until that command exists, the constituent smoke paths are:
+It checks, grouped by subsystem: **config** (Python 3.12, `GOOGLE_API_KEY`, `PERJURY_MODEL`,
+`PERJURY_MUTATION_COUNT` 6–10, Modal credentials), **gemini** (a real structured PydanticAI response),
+**modal** (auth/app + a canary Sandbox that starts, executes, terminates, and leaves 0 running),
+**baseline** (refund baseline PASS locally and in Modal with the same manifest), **workspace** (mutation
+applicator known-path self-check incl. isolation/cleanup) and **evidence** (`.perjury/runs/` writable,
+atomic write, redaction self-test). A failed check blocks its dependents (shown as BLOCKED, not as extra
+failures). A failed preflight blocks the claim that the live demo is ready.
+
+Then rehearse the full judge path once (uses the real Gemini + Modal; saves the evidence bundle):
 
 ```bash
-pytest -q
-python scripts/gemini_smoke.py
-python scripts/modal_workspace_smoke.py
-python scripts/modal_spike.py
+PYTHONPATH=. python scripts/closed_loop_smoke.py                 # fails if > 110 s or not VERIFIED
+PYTHONPATH=. python scripts/closed_loop_smoke.py --mock-models   # same path, canned model outputs, live Modal
 ```
+
+It prints the phase timings, `run_id`, the commit SHA (suffixed `-dirty` if tracked files differ from
+HEAD — do not present a `-dirty` run as the frozen commit) and the evidence bundle path
+(`.perjury/runs/<run_id>/evidence.json`, gitignored, sanitized).
 
 Do not begin the live presentation with a failing preflight.
+
+Measured judge path with mocked models on live Modal: ~18 s end to end (was ~126 s before the snapshot
+upload was batched); Gemini latency (planner, analyzer, generator) is additional.
 
 ## 2. Intended two-minute narrative
 
@@ -67,6 +81,31 @@ Prefer showing:
 Avoid dumping noisy raw logs unless a judge asks.
 
 ## 4. Recovery paths
+
+### Preflight failure, by subsystem
+- **config** — `GOOGLE_API_KEY` empty/missing: put it in `.env` (never commit it). Bad `PERJURY_MODEL`: use
+  `provider:model`, e.g. `google:gemini-3.8-flash`. `PERJURY_MUTATION_COUNT` outside 6–10: fix `.env`.
+  No Modal credentials: `modal setup` (or export `MODAL_TOKEN_ID` / `MODAL_TOKEN_SECRET`). Wrong Python: use 3.12.x.
+- **gemini** — structured response failed: check quota/billing and the key; run `python scripts/gemini_smoke.py`;
+  confirm `PERJURY_MODEL`; if the provider is down do not claim a live model result.
+- **modal** — auth/app failed: `modal token set` / `modal setup`, then retry. Canary failed or leaked a Sandbox:
+  run `modal app list` / `modal container list`, stop stray containers of app `perjury`, rerun. First run after a
+  dependency change rebuilds the image (slow once).
+- **baseline** — local baseline red: STOP; restore the frozen commit / fixture. Modal baseline differs or fails:
+  check the Modal error text (usually infra); rerun; do not weaken the check.
+- **workspace** — applicator self-check failed: the source tree drifted from the canonical fixture (`examples/refund`);
+  `git status`, restore the frozen commit.
+- **evidence** — `.perjury/runs/` not writable: fix permissions/disk space (`df -h .`); the demo can still run but
+  will not save a bundle, so fix it before rehearsing.
+
+### During a run
+- Run ended `failed`: open `/api/runs/<id>` (`error.code`) and `.perjury/runs/<id>/evidence.json`
+  (`outcome`, `run.stages`) — they name the failing stage. Never present it as a success.
+- Run ended `inconclusive`/`rejected`: that is a truthful result (e.g. `mutant_not_killed`,
+  `rescore_inconsistent`); rerun once; do not edit results.
+- Run over 110 s: run `preflight` again (Modal cold start/contention), then rehearse; check `stages` durations in
+  the evidence bundle to see which phase slowed.
+
 
 ### Gemini smoke fails
 - verify `GOOGLE_API_KEY`;

@@ -10,6 +10,7 @@ serves it. Models are typed (see `/openapi.json`).
 | GET | `/health` | process health only |
 | POST | `/api/runs` | **202** `RunCreated {run_id, stage, snapshot_url, events_url}`; **409** if a run is active |
 | GET | `/api/runs/{run_id}` | authoritative `RunSnapshot`; **404** typed for unknown ids |
+| GET | `/api/runs/{run_id}/evidence` | the sanitized evidence bundle (#19), **404** `evidence_unavailable` if none |
 | GET | `/api/runs/{run_id}/events` | SSE, one typed `RunEvent` JSON per default `message`, `id:` = `seq` |
 
 Errors are `{"detail": {"code", "message", "active_run_id?"}}` with `code` in
@@ -38,7 +39,8 @@ retained. Live Gemini/Modal boundaries are built when a run starts, never at imp
 | `run.started` | carries `started_at_ms` (epoch ms) and `commit_sha` |
 | Stages | `created, baseline, context, planning, mutation_execution, survivor_analysis, test_generation, verification, rescoring, verified/rejected/inconclusive/failed` (`context` is new) |
 
-Additions beyond the current UI contract: `terminal`, `reason`, `candidate {candidate_path, sha256, diff}`,
+Additions beyond the current UI contract: `evidence_path`, `evidence_sha256`, `evidence_error` (the bundle is written
+before the terminal event is published; a storage problem never changes the run outcome), `terminal`, `reason`, `candidate {candidate_path, sha256, diff}`,
 `improvement_verified`, `context_sha256`, `batch_sha256`, `stages[]` (timing + evidence refs).
 
 ### Frontend follow-ups required (not done here)

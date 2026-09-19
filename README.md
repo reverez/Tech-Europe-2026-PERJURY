@@ -103,6 +103,8 @@ perjury/
   candidate.py       safe generated-test materialization + preflight (#13)
   hardening.py      two-world candidate verification (#14)
   rescore.py         same-batch before/after re-score (#25)
+  evidence.py        sanitized atomic evidence bundle (#19)
+  preflight.py       subsystem-grouped live-demo preflight (#20)
   generation.py      injectable test-generation boundary
   orchestrator.py    the single typed closed-loop entrypoint (#15)
   verification.py    deterministic verdict logic
@@ -174,6 +176,9 @@ PYTHONPATH=. python scripts/serve_demo.py --mock-models     # open http://127.0.
 
 # Live: Gemini + Modal (needs GOOGLE_API_KEY in .env and `modal setup`)
 PYTHONPATH=. python -m uvicorn perjury.api:app --port 8000  # open http://127.0.0.1:8000/demo
+
+# Before a live demo: subsystem-grouped readiness check (exit 0 only if everything passes)
+PYTHONPATH=. python scripts/preflight.py
 
 # Real-browser smoke of the UI against the real API (mock-model orchestration)
 PYTHONPATH=. python scripts/browser_smoke.py

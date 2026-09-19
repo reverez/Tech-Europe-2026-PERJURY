@@ -23,6 +23,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .evidence import EvidenceRef, EvidenceStore
 from .execution import MutationScore
 from .orchestrator import RunEvent, RunEventType, RunResult, RunStage, StageRecord
 from .rescore import ScoreComparison
@@ -37,7 +38,7 @@ ExecuteFn = Callable[[str, Callable[[RunEvent], None]], RunResult]
 class ApiError(BaseModel):
     """Typed error body, returned as ``{"detail": ApiError}`` (the UI reads ``detail.message``)."""
 
-    code: Literal["run_active", "run_not_found", "invalid_request"]
+    code: Literal["run_active", "run_not_found", "invalid_request", "evidence_unavailable"]
     message: str
     active_run_id: str | None = None
 
@@ -139,6 +140,9 @@ class RunSnapshot(BaseModel):
     context_sha256: str | None = None
     batch_sha256: str | None = None
     stages: list[StageRecord] = Field(default_factory=list)
+    evidence_path: str | None = None
+    evidence_sha256: str | None = None
+    evidence_error: str | None = None
 
 
 def _score(payload: dict[str, Any]) -> SnapshotScore:
@@ -264,6 +268,8 @@ class RunRecord:
         self.events: list[RunEvent] = []
         self.result: RunResult | None = None
         self.crash: tuple[str, str] | None = None
+        self.evidence: EvidenceRef | None = None
+        self.evidence_error: str | None = None
         self.done = False
         self.created = time.time()
         self._held_terminal: RunEvent | None = None
@@ -316,6 +322,12 @@ class RunRecord:
         if crash is not None:
             snap.error = ErrorView(code=crash[0], message=crash[1])
             snap.stage, snap.terminal, snap.reason = RunStage.FAILED.value, True, crash[0]
+        if self.evidence is not None:
+            snap.evidence_path, snap.evidence_sha256 = (
+                self.evidence.path,
+                self.evidence.bundle_sha256,
+            )
+        snap.evidence_error = self.evidence_error
         return snap
 
 
@@ -334,8 +346,10 @@ class RunManager:
         *,
         id_factory: Callable[[], str] = lambda: f"run-{uuid.uuid4().hex[:12]}",
         wall_ms: Callable[[], int] = lambda: int(time.time() * 1000),
+        evidence: EvidenceStore | None = None,
     ) -> None:
         self._execute = execute
+        self.evidence = evidence
         self._id_factory = id_factory
         self.wall_ms = wall_ms
         self._lock = threading.Lock()
@@ -372,10 +386,25 @@ class RunManager:
         except Exception as exc:  # noqa: BLE001 - a crashed run must still terminate cleanly
             crash = ("internal_error", f"{type(exc).__name__}: {exc}")
         finally:
+            self._save_evidence(record, result, crash)
             record.finish(result, crash)
             with self._lock:
                 if self._active == record.run_id:
                     self._active = None
+
+    def _save_evidence(
+        self, record: RunRecord, result: RunResult | None, crash: tuple[str, str] | None
+    ) -> None:
+        """Persist the sanitized bundle before the terminal event is published. A storage problem is
+        reported on the snapshot (``evidence_error``); it never changes the run's outcome."""
+        if self.evidence is None:
+            return
+        try:
+            with record.lock:
+                events = list(record.events)
+            record.evidence = self.evidence.save(record.run_id, result, events, crash)
+        except Exception as exc:  # noqa: BLE001 - evidence must never break a run
+            record.evidence_error = f"{type(exc).__name__}: {exc}"
 
     def get(self, run_id: str) -> RunRecord | None:
         with self._lock:

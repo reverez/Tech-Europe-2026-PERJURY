@@ -13,8 +13,9 @@ from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 from fastapi import FastAPI, Header, HTTPException, Query, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 
+from .evidence import EvidenceStore
 from .orchestrator import RunEvent, RunResult
 from .runs import ApiError, RunConflictError, RunCreated, RunManager, RunRecord, RunSnapshot
 from .ui import mount_ui
@@ -24,19 +25,25 @@ KEEPALIVE_SECONDS = 15.0
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def _commit_sha() -> str | None:
+def _git(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str] | None:
     try:
-        done = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=ROOT,
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
+        return subprocess.run(
+            ["git", *args], cwd=cwd, capture_output=True, text=True, timeout=5, check=False
         )
     except (OSError, subprocess.SubprocessError):
         return None
-    return done.stdout.strip() or None if done.returncode == 0 else None
+
+
+def _commit_sha(cwd: Path = ROOT) -> str | None:
+    """Short HEAD SHA, suffixed ``-dirty`` when tracked files differ from it, so evidence never
+    implies a clean commit that was not actually run."""
+    head = _git(["rev-parse", "--short", "HEAD"], cwd)
+    if head is None or head.returncode != 0 or not head.stdout.strip():
+        return None
+    sha = head.stdout.strip()
+    status = _git(["status", "--porcelain", "--untracked-files=no"], cwd)
+    dirty = status is None or status.returncode != 0 or bool(status.stdout.strip())
+    return f"{sha}-dirty" if dirty else sha
 
 
 def live_execute(run_id: str, on_event: Callable[[RunEvent], None]) -> RunResult:
@@ -63,6 +70,13 @@ def live_execute(run_id: str, on_event: Callable[[RunEvent], None]) -> RunResult
         on_event=on_event,
         commit_sha=_commit_sha(),
     )
+
+
+def default_evidence_store() -> EvidenceStore:
+    """Evidence for the demo workspace goes to the gitignored ``.perjury/`` directory."""
+    from .workspace import refund_workspace_spec
+
+    return EvidenceStore(ROOT / ".perjury", refund_workspace_spec(str(ROOT)), _commit_sha)
 
 
 def _error(status: int, code: str, message: str, active_run_id: str | None = None) -> HTTPException:
@@ -101,7 +115,7 @@ async def _event_stream(record: RunRecord, request: Request, after: int) -> Asyn
 
 def create_app(manager: RunManager | None = None) -> FastAPI:
     """Build the app. Tests inject a manager with deterministic boundaries."""
-    manager = manager or RunManager(live_execute)
+    manager = manager or RunManager(live_execute, evidence=default_evidence_store())
     api = FastAPI(
         title="PERJURY",
         description="Autonomous adversarial test-hardening agent",
@@ -150,6 +164,18 @@ def create_app(manager: RunManager | None = None) -> FastAPI:
     )
     def get_run(run_id: str) -> RunSnapshot:
         return _record(manager, run_id).snapshot(manager.wall_ms)
+
+    @api.get(
+        "/api/runs/{run_id}/evidence",
+        responses={404: {"model": ApiError}},
+    )
+    def get_evidence(run_id: str) -> JSONResponse:
+        """The sanitized evidence bundle (same redaction policy as the persisted file)."""
+        _record(manager, run_id)
+        bundle = manager.evidence.load(run_id) if manager.evidence is not None else None
+        if bundle is None:
+            raise _error(404, "evidence_unavailable", f"no evidence bundle for run {run_id!r}")
+        return JSONResponse(bundle)
 
     @api.get("/api/runs/{run_id}/events", responses={404: {"model": ApiError}})
     async def run_events(

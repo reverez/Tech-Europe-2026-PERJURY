@@ -1,7 +1,11 @@
 from __future__ import annotations
 
+import gzip
 import hashlib
+import io
+import json
 import shutil
+import tarfile
 import tempfile
 import threading
 import time
@@ -75,9 +79,7 @@ def _get_app() -> modal.App:
 @lru_cache(maxsize=1)
 def _get_runtime_unlocked() -> modal.Image:
     """Construct the pinned hackathon runtime lazily."""
-    return modal.Image.debian_slim(python_version="3.12").pip_install(
-        "pytest==" + PYTEST_VERSION
-    )
+    return modal.Image.debian_slim(python_version="3.12").pip_install("pytest==" + PYTEST_VERSION)
 
 
 def _get_runtime() -> modal.Image:
@@ -101,7 +103,12 @@ def _is_pytest_command(command: tuple[str, ...]) -> bool:
 
 def _remote_path(relative_path: str) -> str:
     path = PurePosixPath(relative_path)
-    if str(path) in {"", "."} or path.is_absolute() or ".." in path.parts:
+    if (
+        str(path) in {"", "."}
+        or path.is_absolute()
+        or ".." in path.parts
+        or any(ord(ch) < 32 or ord(ch) == 127 for ch in relative_path)
+    ):
         raise SnapshotMaterializationError(
             f"snapshot file must be a safe relative path: {relative_path!r}"
         )
@@ -138,7 +145,9 @@ def _materialized_files(
     if manifest.workspace_id != spec.workspace_id:
         raise SnapshotMaterializationError("manifest workspace_id does not match WorkspaceSpec")
     if manifest.source_snapshot_id != spec.snapshot_id:
-        raise SnapshotMaterializationError("manifest snapshot identity does not match WorkspaceSpec")
+        raise SnapshotMaterializationError(
+            "manifest snapshot identity does not match WorkspaceSpec"
+        )
 
     root = Path(spec.source_root).expanduser().resolve()
     current_manifest = build_snapshot_manifest(spec)
@@ -157,6 +166,77 @@ def _materialized_files(
             )
         materialized.append((data, _remote_path(entry.path)))
     return materialized
+
+
+SNAPSHOT_ARCHIVE = "/tmp/perjury_snapshot.tar.gz"  # outside the workspace it materializes
+MANIFEST_MEMBER = "__perjury_manifest__.json"
+
+# Runs inside the Sandbox (one exec): safely extract the archive, then require that the extracted
+# tree is byte-for-byte the manifest (sizes + sha256) and contains nothing else.
+_EXTRACT_AND_VERIFY = r"""
+import hashlib, json, os, sys, tarfile
+archive, root, member = sys.argv[1], sys.argv[2], sys.argv[3]
+
+def die(message):
+    print(message, file=sys.stderr)
+    sys.exit(3)
+
+with tarfile.open(archive, "r:gz") as tar:
+    members = tar.getmembers()
+    manifest = None
+    for m in members:
+        if m.name == member:
+            manifest = json.load(tar.extractfile(m))
+    if manifest is None:
+        die("archive has no manifest")
+    expected = {e["path"]: e for e in manifest["files"]}
+    payload = [m for m in members if m.name != member]
+    for m in payload:
+        parts = m.name.split("/")
+        if not m.isreg() or m.name.startswith("/") or ".." in parts or "" in parts:
+            die("unsafe archive member: " + repr(m.name))
+    if sorted(m.name for m in payload) != sorted(expected):
+        die("archive members do not match the manifest")
+    os.makedirs(root, exist_ok=True)
+    for m in payload:
+        tar.extract(m, root, filter="data")
+
+for path, entry in expected.items():
+    with open(os.path.join(root, path), "rb") as handle:
+        data = handle.read()
+    if len(data) != entry["size_bytes"] or hashlib.sha256(data).hexdigest() != entry["sha256"]:
+        die("extracted file differs from the manifest: " + path)
+found = set()
+for base, _dirs, names in os.walk(root):
+    for name in names:
+        found.add(os.path.relpath(os.path.join(base, name), root).replace(os.sep, "/"))
+if found != set(expected):
+    die("workspace contains files outside the manifest")
+print("ok")
+"""
+
+
+def _snapshot_archive(spec: WorkspaceSpec, manifest: SnapshotManifest) -> bytes:
+    """Deterministic gzip tar of exactly the manifest files, with the manifest embedded."""
+    entries = _materialized_files(spec, manifest)
+    prefix = f"{REMOTE_WORKSPACE}/"
+    raw = io.BytesIO()
+    with tarfile.open(fileobj=raw, mode="w", format=tarfile.PAX_FORMAT) as tar:
+        meta = json.dumps(
+            {"files": [f.model_dump() for f in manifest.files]}, sort_keys=True
+        ).encode("utf-8")
+        for name, data in [(MANIFEST_MEMBER, meta)] + [
+            (remote.removeprefix(prefix), data) for data, remote in entries
+        ]:
+            info = tarfile.TarInfo(name)
+            info.size, info.mode, info.mtime = len(data), 0o644, 0
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            tar.addfile(info, io.BytesIO(data))
+    out = io.BytesIO()
+    with gzip.GzipFile(fileobj=out, mode="wb", compresslevel=6, mtime=0) as handle:
+        handle.write(raw.getvalue())
+    return out.getvalue()
 
 
 def _remote_working_directory(spec: WorkspaceSpec) -> str:
@@ -208,7 +288,7 @@ class ModalWorkspaceExecutor:
         try:
             if active_manifest is None:
                 active_manifest = build_snapshot_manifest(spec)
-            files = _materialized_files(spec, active_manifest)
+            archive = _snapshot_archive(spec, active_manifest)
             workdir = _remote_working_directory(spec)
         except (SnapshotMaterializationError, SnapshotPolicyError, OSError) as exc:
             return ExecutionResult(
@@ -234,15 +314,29 @@ class ModalWorkspaceExecutor:
                 env=dict(spec.environment),
                 secrets=(),
                 include_oidc_identity_token=False,
-                timeout=(spec.command_timeout_seconds * command_count) + 30,
+                timeout=(spec.command_timeout_seconds * command_count) + 60,
                 block_network=spec.network_policy is NetworkPolicy.BLOCKED,
             )
-            sandbox.filesystem.make_directory(str(REMOTE_WORKSPACE))
-            sandbox.filesystem.make_directory(workdir)
-            for data, remote_path in files:
-                sandbox.filesystem.write_bytes(data, remote_path)
+            # One upload + one verified extraction replaces ~90 sequential filesystem calls.
+            sandbox.filesystem.write_bytes(archive, SNAPSHOT_ARCHIVE)
+            extract = sandbox.exec(
+                "python",
+                "-c",
+                _EXTRACT_AND_VERIFY,
+                SNAPSHOT_ARCHIVE,
+                str(REMOTE_WORKSPACE),
+                MANIFEST_MEMBER,
+                timeout=60,
+                env=dict(spec.environment),
+                secrets=(),
+            )
+            extract_code, _, extract_err = _read_process(extract)
+            if extract_code != 0:
+                failure_detail = (
+                    f"snapshot materialization failed (exit {extract_code}): {extract_err.strip()}"
+                )
 
-            if spec.install_argv is not None:
+            if failure_detail is None and spec.install_argv is not None:
                 install = sandbox.exec(
                     *spec.install_argv,
                     workdir=workdir,
@@ -270,9 +364,7 @@ class ModalWorkspaceExecutor:
         except modal.exception.TimeoutError as exc:
             outcome = ExecutionOutcome.TIMEOUT
             exit_code = None
-            failure_detail = (
-                f"command exceeded timeout={spec.command_timeout_seconds}s: {exc}"
-            )
+            failure_detail = f"command exceeded timeout={spec.command_timeout_seconds}s: {exc}"
         except modal.Error as exc:
             outcome = ExecutionOutcome.INFRA_ERROR
             exit_code = None

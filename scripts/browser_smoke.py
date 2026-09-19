@@ -125,7 +125,10 @@ async def drive(url: str, chrome: str, shot: Path) -> None:
             for domain in ("Page", "Runtime", "Log"):
                 await page.call(f"{domain}.enable")
             await page.call("Page.navigate", url=f"{url}/demo")
-            await page.wait_for("document.getElementById('cta') !== null")
+            # wait for the module script's first paint, or the click can land before its handler exists
+            await page.wait_for(
+                "document.querySelector('#p-baseline .body')?.textContent.length > 0"
+            )
             assert await page.js("document.getElementById('sim-banner').hidden") is True
             t0 = time.time()
             await page.js("document.getElementById('cta').click()")
