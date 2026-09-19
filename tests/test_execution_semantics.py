@@ -147,3 +147,21 @@ def test_execution_result_rejects_contradictory_outcome_and_exit_code(
             exit_code=exit_code,
             duration_ms=1,
         )
+
+
+def test_run_spec_environment_defaults_empty() -> None:
+    spec = RunSpec(mutation_id="M96")
+    assert spec.env == {}
+
+
+def test_execution_result_keeps_cleanup_error_separate() -> None:
+    result = ExecutionResult(
+        mutation_id="M95",
+        outcome=ExecutionOutcome.PASS,
+        exit_code=0,
+        duration_ms=1,
+        cleanup_error="Sandbox cleanup failed",
+    )
+
+    assert result.outcome is ExecutionOutcome.PASS
+    assert result.cleanup_error == "Sandbox cleanup failed"
