@@ -66,6 +66,13 @@ tests/
   test_verification.py
 ```
 
+## Project documentation
+
+- [Frozen hackathon specification](docs/SPEC.md)
+- [Target architecture](docs/ARCHITECTURE.md)
+- [Implementation plan and milestone gates](docs/IMPLEMENTATION_PLAN.md)
+- GitHub epics: [P0 / M0](../../issues/1), [P1 / M1](../../issues/2), [P2 / M2](../../issues/3), [P3 / M3](../../issues/21)
+
 ## Setup
 
 Requires Python 3.12+.
