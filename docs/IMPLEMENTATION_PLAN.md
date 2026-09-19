@@ -89,9 +89,9 @@ One callable core pipeline must:
 **Parent:** #3
 
 Issues:
-- **#17** — typed run API + SSE event stream
-- **#18** — single-screen demo surface
-- **#19** — structured observability/evidence bundle
+- **#17** — same-origin typed run API + SSE event stream, in-memory one-run registry
+- **#18** — zero-build single-screen demo surface
+- **#19** — structured observability + gitignored local evidence bundle
 - **#20** — external preflight + sub-two-minute rehearsal
 
 Dependencies:
