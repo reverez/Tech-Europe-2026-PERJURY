@@ -10,4 +10,5 @@ python -m ruff check .
 python -m compileall -q perjury scripts examples tests
 python -c "from perjury.api import app; assert app.title == 'PERJURY'"
 python -c "from perjury.modal_runner import PYTEST_VERSION; assert PYTEST_VERSION == '9.1.1'"
+python -c "import perjury.agent; import perjury.modal_runner"
 python -m pytest -q
