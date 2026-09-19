@@ -22,6 +22,17 @@ class MutationStatus(StrEnum):
     INFRA_ERROR = "infra_error"
 
 
+def execution_outcome_for_pytest_exit(code: int) -> ExecutionOutcome:
+    """Map pytest's documented process exits into PERJURY semantics."""
+    if code == 0:
+        return ExecutionOutcome.PASS
+    if code == 1:
+        return ExecutionOutcome.TEST_FAIL
+    if code in {2, 4, 5}:
+        return ExecutionOutcome.INVALID
+    return ExecutionOutcome.INFRA_ERROR
+
+
 def mutation_status_for(outcome: ExecutionOutcome) -> MutationStatus:
     return {
         ExecutionOutcome.PASS: MutationStatus.SURVIVED,
@@ -61,10 +72,15 @@ class ExecutionResult(BaseModel):
 
     @model_validator(mode="after")
     def outcome_must_match_known_pytest_exit(self) -> ExecutionResult:
-        if self.outcome is ExecutionOutcome.PASS and self.exit_code != 0:
-            raise ValueError("PASS requires pytest exit code 0.")
-        if self.outcome is ExecutionOutcome.TEST_FAIL and self.exit_code != 1:
-            raise ValueError("TEST_FAIL requires pytest exit code 1.")
+        if self.exit_code is not None:
+            expected = execution_outcome_for_pytest_exit(self.exit_code)
+            if self.outcome is not expected:
+                raise ValueError(
+                    f"Exit code {self.exit_code} requires outcome {expected.value!r}, "
+                    f"not {self.outcome.value!r}."
+                )
+        elif self.outcome in {ExecutionOutcome.PASS, ExecutionOutcome.TEST_FAIL}:
+            raise ValueError(f"{self.outcome.value!r} requires a concrete pytest exit code.")
         return self
 
 
@@ -102,10 +118,17 @@ class VerificationEvidence(BaseModel):
             ("mutant", self.mutant_outcome, self.mutant_exit_code),
         )
         for label, outcome, exit_code in pairs:
-            if outcome is ExecutionOutcome.PASS and exit_code != 0:
-                raise ValueError(f"{label} PASS requires pytest exit code 0.")
-            if outcome is ExecutionOutcome.TEST_FAIL and exit_code != 1:
-                raise ValueError(f"{label} TEST_FAIL requires pytest exit code 1.")
+            if exit_code is not None:
+                expected = execution_outcome_for_pytest_exit(exit_code)
+                if outcome is not expected:
+                    raise ValueError(
+                        f"{label} exit code {exit_code} requires outcome "
+                        f"{expected.value!r}, not {outcome.value!r}."
+                    )
+            elif outcome in {ExecutionOutcome.PASS, ExecutionOutcome.TEST_FAIL}:
+                raise ValueError(
+                    f"{label} {outcome.value!r} requires a concrete pytest exit code."
+                )
         return self
 
     @property
