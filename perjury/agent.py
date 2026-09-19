@@ -14,6 +14,7 @@ MODEL = os.getenv("PERJURY_MODEL", "google:gemini-3.8-flash")
 mutation_agent = Agent(
     MODEL,
     output_type=MutationBatch,
+    defer_model_check=True,
     system_prompt=(
         "You are PERJURY's adversarial mutation planner. Propose semantically meaningful, "
         "small mutations that preserve syntax and plausibly expose behavioural assumptions "
@@ -25,6 +26,7 @@ mutation_agent = Agent(
 survivor_agent = Agent(
     MODEL,
     output_type=SurvivorAnalysis,
+    defer_model_check=True,
     system_prompt=(
         "Analyse one mutation that survived the existing pytest suite. Explain the behavioural "
         "distinction it may expose and whether the mutant could be equivalent in the valid input "
@@ -35,6 +37,7 @@ survivor_agent = Agent(
 test_agent = Agent(
     MODEL,
     output_type=TestProposal,
+    defer_model_check=True,
     system_prompt=(
         "Generate one focused pytest regression test for a surviving mutation. The proposal will "
         "be accepted only if deterministic execution proves that it passes on the original "
