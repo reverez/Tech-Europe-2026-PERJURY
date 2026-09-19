@@ -18,7 +18,13 @@ COUNT = 10
 
 
 def main() -> None:
-    specs = [RunSpec(mutation_id=f"M{i:02d}", command=("python", "-c", "print('ok')")) for i in range(1, COUNT + 1)]
+    specs = [
+        RunSpec(
+            mutation_id=f"M{i:02d}",
+            command=("python", "-c", "print('ok')"),
+        )
+        for i in range(1, COUNT + 1)
+    ]
 
     started = perf_counter()
     results = []
