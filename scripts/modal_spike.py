@@ -20,7 +20,10 @@ def main() -> None:
     specs = [
         RunSpec(
             mutation_id=f"M{i:02d}",
-            command=("python", "-c", "print('ok')"),
+            workspace_files={
+                "test_smoke.py": "def test_modal_smoke() -> None:\n    assert True\n",
+            },
+            command=("pytest", "-q", "test_smoke.py"),
         )
         for i in range(1, COUNT + 1)
     ]
