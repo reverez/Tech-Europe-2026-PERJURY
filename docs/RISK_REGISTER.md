@@ -12,6 +12,7 @@
 | External quota/network failure | provider errors/timeouts | preflight early; classify provider failure | show previously captured **real** run evidence, clearly labelled recorded, not live | #20/#24 |
 | Re-score contradicts selected verification | selected mutant does not reproduce as killed | same-batch replay + inconsistency state | do not claim score improvement; surface inconsistency | #25 |
 | Demo exceeds two minutes | rehearsal wall time too high | bounded 6–10 mutants, one survivor, minimal UI | reduce live mutant count within spec floor or optimize setup reuse | #20 |
+| Dependency/runtime drift | fresh install resolves behavior different from rehearsal | Python 3.12.x + pinned direct dependencies + pip check | revert to frozen versions and rerun CI/preflight | #22/#24 |
 | Scope creep | new language/GitHub automation/etc. appears on critical path | enforce SPEC + decisions | defer to post-hackathon backlog | parent epics |
 | Parallel agent merge collision | same contract file edited concurrently | lane ownership + short branches + rebase | serialize contract changes | DEVELOPMENT_WORKFLOW |
 | Documentation drift | commands/issue numbers no longer match code | doc update matrix + final audit | block #23 sign-off | #23 |
