@@ -38,7 +38,12 @@ class BaselineNotReadyError(WorkspaceError):
             f"Baseline {result.execution.execution_id!r} is not ready for mutation: "
             f"outcome={result.execution.outcome.value}"
         )
-        if result.execution.cleanup_error:
+        if result.manifest_sha256 != result.post_execution_manifest_sha256:
+            message += (
+                "; source snapshot changed during execution "
+                f"({result.manifest_sha256} -> {result.post_execution_manifest_sha256})"
+            )
+        elif result.execution.cleanup_error:
             message += f"; cleanup_error={result.execution.cleanup_error}"
         elif detail:
             message += f"; detail={detail}"
