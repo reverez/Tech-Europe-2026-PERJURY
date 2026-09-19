@@ -1,10 +1,15 @@
 from fastapi import FastAPI
 
+from perjury.ui import mount_ui
+
 app = FastAPI(
     title="PERJURY",
     description="Autonomous adversarial test-hardening agent",
     version="0.1.0",
 )
+
+
+mount_ui(app)
 
 
 @app.get("/health")
