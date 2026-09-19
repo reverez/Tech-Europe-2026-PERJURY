@@ -124,6 +124,11 @@ class HardeningResult(BaseModel):
 
     @model_validator(mode="after")
     def verdict_must_match_evidence(self) -> HardeningResult:
+        if self.mutation_id != self.evidence.mutation_id:
+            raise ValueError(
+                "Hardening result mutation_id must match verification evidence."
+            )
+
         if self.evidence.verified:
             expected = "verified"
         elif self.evidence.original_outcome is ExecutionOutcome.TEST_FAIL:
