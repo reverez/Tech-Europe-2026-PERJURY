@@ -24,7 +24,7 @@ Pytest process semantics used by PERJURY:
 | ---: | --- | --- |
 | 0 | tests passed | PASS |
 | 1 | tests ran and failed | TEST_FAIL |
-| 2 | interrupted | INVALID or INFRA_ERROR, never TEST_FAIL |
+| 2 | interrupted | INVALID |
 | 3 | internal error | INFRA_ERROR |
 | 4 | command-line usage error | INVALID |
 | 5 | no tests collected | INVALID |
@@ -48,6 +48,8 @@ Only **PASS(original)** plus **TEST_FAIL(mutant)** can verify a generated regres
 - implementation-only mutation allowlist;
 - tests/context paths forbidden as mutation targets;
 - secret/runtime directories absent from snapshot manifest;
+- snapshot file-count/byte limits;
+- network policy defaults to blocked;
 - missing/ambiguous snippet anchor rejection;
 - original workspace remains unchanged.
 
