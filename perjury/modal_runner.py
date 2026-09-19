@@ -75,6 +75,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
             app=_get_app(),
             image=_get_runtime(),
             timeout=120,
+            block_network=True,
         )
 
         for relative_path, contents in spec.workspace_files.items():
