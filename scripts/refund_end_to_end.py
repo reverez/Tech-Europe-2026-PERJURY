@@ -104,7 +104,7 @@ def main() -> None:
     baseline = run_case("B00", ORIGINAL_SOURCE)
     print(
         f"   exit={baseline.exit_code} duration={baseline.duration_ms}ms "
-        f"status={baseline.status}"
+        f"outcome={baseline.outcome}"
     )
     if baseline.outcome is not ExecutionOutcome.PASS:
         raise SystemExit("Baseline is not a clean pytest pass; aborting mutation analysis.")
@@ -113,7 +113,7 @@ def main() -> None:
     mutant = run_case("M01", MUTANT_SOURCE)
     print(
         f"   exit={mutant.exit_code} duration={mutant.duration_ms}ms "
-        f"status={mutant.status}"
+        f"outcome={mutant.outcome}"
     )
     if mutant.outcome is not ExecutionOutcome.PASS:
         raise SystemExit("Expected M01 to survive the incomplete test suite.")
