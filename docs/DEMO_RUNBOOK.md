@@ -23,6 +23,7 @@ Until that command exists, the constituent smoke paths are:
 ```bash
 pytest -q
 python scripts/gemini_smoke.py
+python scripts/modal_workspace_smoke.py
 python scripts/modal_spike.py
 ```
 

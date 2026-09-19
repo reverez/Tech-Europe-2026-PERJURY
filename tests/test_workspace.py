@@ -57,6 +57,7 @@ class MutatingExecutor:
         spec: WorkspaceSpec,
         *,
         execution_id: str,
+        manifest: SnapshotManifest | None = None,
     ) -> ExecutionResult:
         self.target.write_text("def value() -> int:\n    return 2\n", encoding="utf-8")
         return ExecutionResult(
@@ -80,6 +81,7 @@ class FakeExecutor:
         spec: WorkspaceSpec,
         *,
         execution_id: str,
+        manifest: SnapshotManifest | None = None,
     ) -> ExecutionResult:
         return ExecutionResult(
             execution_id=execution_id,

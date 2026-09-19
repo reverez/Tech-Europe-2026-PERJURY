@@ -121,6 +121,9 @@ This is a test of PERJURY's pipeline, not of Gemini quality.
 ## 5. Live smoke requirements
 
 ### Modal
+Run `python scripts/modal_workspace_smoke.py` to prove local-vs-Modal baseline parity on the
+exact sanitized refund snapshot before the concurrent spike.
+
 Record:
 - sandbox count;
 - per-sandbox duration;

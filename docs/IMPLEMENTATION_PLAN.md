@@ -9,7 +9,8 @@ This plan is the dependency map for the implementation issues. Parent epics desc
 
 Present today:
 - mutation/analysis/test/verification contracts;
-- provider-independent workspace/baseline execution and deterministic safe mutation application;
+- provider-independent workspace/baseline execution, deterministic safe mutation application,
+  and sanitized Modal workspace execution;
 - Gemini/PydanticAI agent definitions;
 - minimal Modal Sandbox primitive;
 - deterministic verifier scaffold;

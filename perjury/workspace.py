@@ -57,6 +57,7 @@ class WorkspaceExecutor(Protocol):
         spec: WorkspaceSpec,
         *,
         execution_id: str,
+        manifest: SnapshotManifest | None = None,
     ) -> ExecutionResult:
         """Execute one configured pytest workspace and return semantic evidence."""
 
@@ -202,10 +203,23 @@ class LocalPytestExecutor:
         spec: WorkspaceSpec,
         *,
         execution_id: str,
+        manifest: SnapshotManifest | None = None,
     ) -> ExecutionResult:
         started = time.perf_counter()
         root = Path(spec.source_root).expanduser().resolve()
         working_directory = (root / spec.working_directory).resolve()
+
+        if manifest is not None:
+            current_manifest = build_snapshot_manifest(spec)
+            if current_manifest.manifest_sha256 != manifest.manifest_sha256:
+                return ExecutionResult(
+                    execution_id=execution_id,
+                    outcome=ExecutionOutcome.INVALID,
+                    duration_ms=int((time.perf_counter() - started) * 1000),
+                    failure_detail=(
+                        "source snapshot does not match the manifest supplied for execution"
+                    ),
+                )
 
         try:
             working_directory.relative_to(root)
@@ -300,7 +314,7 @@ def run_baseline(
     """Build sanitized evidence, execute the baseline, and stop on any non-ready result."""
     manifest = build_snapshot_manifest(spec)
     execution_id = f"baseline:{spec.workspace_id}"
-    execution = executor.execute(spec, execution_id=execution_id)
+    execution = executor.execute(spec, execution_id=execution_id, manifest=manifest)
     if execution.execution_id != execution_id:
         raise WorkspaceError(
             f"Executor returned execution_id={execution.execution_id!r}; "

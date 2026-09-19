@@ -76,7 +76,7 @@ defensible before/after mutation score
 
 The repository currently contains the protocol scaffold, Gemini/PydanticAI agents, a minimal Modal primitive, FastAPI skeleton, refund fixture, smoke scripts, tests, CI, and the full implementation roadmap.
 
-The production loop is **not yet complete**. The semantic execution foundation (**#8**), provider-independent WorkspaceSpec/baseline layer (**#4**), and deterministic safe mutation applicator (**#5**) are implemented; the next M0 task is **#6**, sanitized workspace materialization in Modal.
+The production loop is **not yet complete**. The semantic execution foundation (**#8**), provider-independent WorkspaceSpec/baseline layer (**#4**), and deterministic safe mutation applicator (**#5**) are implemented. The sanitized Modal workspace executor for **#6** is implemented and deterministically tested; its live local-vs-Modal parity smoke must pass before **#7** begins.
 
 Development is gated by the parent epics:
 
@@ -149,6 +149,7 @@ Then configure external services separately:
 python scripts/gemini_smoke.py
 
 modal setup
+python scripts/modal_workspace_smoke.py
 python scripts/modal_spike.py
 ```
 
