@@ -21,6 +21,7 @@ from __future__ import annotations
 import fnmatch
 import hashlib
 import re
+from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
 from typing import Literal
@@ -337,9 +338,9 @@ UNTRUSTED_CONTENT_POLICY = (
 )
 
 
-def _delimiter(bundle: ContextBundle) -> str:
+def _delimiter(bundle: ContextBundle, extra_text: str = "") -> str:
     """Deterministic marker guaranteed absent from every packed file's text and path."""
-    haystack = "\n".join(f"{f.entry.path}\n{f.text}" for f in bundle.files)
+    haystack = "\n".join(f"{f.entry.path}\n{f.text}" for f in bundle.files) + "\n" + extra_text
     base = bundle.manifest.context_sha256.removeprefix("sha256:")[:16]
     counter = 0
     while True:
@@ -349,18 +350,24 @@ def _delimiter(bundle: ContextBundle) -> str:
         counter += 1
 
 
-def render_mutation_request(bundle: ContextBundle) -> str:
-    """Render the model request: trusted instructions, then delimited untrusted data."""
-    marker = _delimiter(bundle)
-    mutable = ", ".join(bundle.manifest.mutable_paths)
-    tests = ", ".join(bundle.manifest.context_only_paths) or "(none included)"
+def render_context_request(
+    bundle: ContextBundle,
+    *,
+    intro: str,
+    instructions: Sequence[str],
+    extra_sections: Sequence[tuple[str, str]] = (),
+) -> str:
+    """Trusted intro/instructions first, then all repository-derived text inside the markers.
+
+    ``extra_sections`` (title, text) carry other untrusted material such as diffs; the marker is
+    chosen so it cannot appear in any of it.
+    """
+    marker = _delimiter(bundle, "\n".join(f"{t}\n{x}" for t, x in extra_sections))
     lines = [
-        "You are proposing semantic mutations for a Python pytest suite.",
+        intro,
         UNTRUSTED_CONTENT_POLICY,
         "",
-        f"MUTABLE implementation files (the ONLY valid mutation targets): {mutable}",
-        f"CONTEXT-ONLY test files (read for behaviour; NEVER a mutation target): {tests}",
-        "Each original_snippet must be copied verbatim from a MUTABLE file and match exactly once.",
+        *instructions,
         f"Context hash: {bundle.manifest.context_sha256}",
         "",
         f"=== BEGIN UNTRUSTED REPOSITORY CONTENT [{marker}] ===",
@@ -372,5 +379,24 @@ def render_mutation_request(bundle: ContextBundle) -> str:
         )
         lines.append(file.text)
         lines.append(f"--- END FILE [{marker}] ---")
+    for title, text in extra_sections:
+        lines.append(f"--- SECTION [{marker}] {title} ---")
+        lines.append(text)
+        lines.append(f"--- END SECTION [{marker}] ---")
     lines.append(f"=== END UNTRUSTED REPOSITORY CONTENT [{marker}] ===")
     return "\n".join(lines) + "\n"
+
+
+def render_mutation_request(bundle: ContextBundle) -> str:
+    """Render the mutation-planning request: trusted instructions, then delimited data."""
+    mutable = ", ".join(bundle.manifest.mutable_paths)
+    tests = ", ".join(bundle.manifest.context_only_paths) or "(none included)"
+    return render_context_request(
+        bundle,
+        intro="You are proposing semantic mutations for a Python pytest suite.",
+        instructions=(
+            f"MUTABLE implementation files (the ONLY valid mutation targets): {mutable}",
+            f"CONTEXT-ONLY test files (read for behaviour; NEVER a mutation target): {tests}",
+            "Each original_snippet must be copied verbatim from a MUTABLE file and match exactly once.",
+        ),
+    )

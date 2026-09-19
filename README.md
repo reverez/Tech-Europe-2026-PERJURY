@@ -99,6 +99,7 @@ perjury/
   planning.py        mutation planning/validation/replenishment
   execution.py       first-pass mutation execution + score (#11)
   canonical.py       canonical refund mutation batch
+  analysis.py        survivor analysis + hardening-target selection (#12)
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/
