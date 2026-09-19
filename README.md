@@ -31,7 +31,7 @@ Gemini 3.8 Flash is the default configured model through `PERJURY_MODEL`; script
 
 The hackathon MVP intentionally supports a narrow, reproducible target:
 
-- Python 3.12+;
+- Python 3.12.x;
 - pytest;
 - one repository/workspace snapshot per run;
 - an explicit structured install command when needed;
@@ -123,7 +123,7 @@ Read these in order when implementing:
 
 ## Setup
 
-Requires Python 3.12+.
+Requires Python 3.12.x. Direct runtime/dev dependencies are pinned to the versions validated by deterministic CI for the hackathon build.
 
 ```bash
 git clone https://github.com/reverez/Tech-Europe-2026-PERJURY.git
