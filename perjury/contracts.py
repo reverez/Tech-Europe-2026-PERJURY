@@ -64,6 +64,7 @@ class ExecutionResult(BaseModel):
     stdout: str = ""
     stderr: str = ""
     duration_ms: int = Field(ge=0)
+    cleanup_error: str | None = None
 
     @property
     def status(self) -> MutationStatus:
