@@ -28,7 +28,7 @@ def _get_runtime() -> modal.Image:
 
 @dataclass(slots=True)
 class RunSpec:
-    mutation_id: str
+    execution_id: str
     command: tuple[str, ...] = ("pytest", "-q")
     workspace_files: dict[str, str] = field(default_factory=dict)
     workspace: str = "/workspace"
@@ -71,7 +71,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
     started = time.perf_counter()
     if not _is_pytest_command(spec.command):
         return ExecutionResult(
-            mutation_id=spec.mutation_id,
+            execution_id=spec.execution_id,
             outcome=ExecutionOutcome.INVALID,
             exit_code=None,
             stderr="execute_pytest accepts only pytest or python -m pytest commands.",
@@ -85,7 +85,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         ]
     except ValueError as exc:
         return ExecutionResult(
-            mutation_id=spec.mutation_id,
+            execution_id=spec.execution_id,
             outcome=ExecutionOutcome.INVALID,
             exit_code=None,
             stderr=str(exc),
@@ -138,7 +138,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
                 cleanup_error = f"Sandbox cleanup failed: {exc}"
 
     return ExecutionResult(
-        mutation_id=spec.mutation_id,
+        execution_id=spec.execution_id,
         outcome=outcome,
         exit_code=exit_code,
         stdout=stdout,
