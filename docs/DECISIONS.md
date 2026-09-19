@@ -16,6 +16,8 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-010 | The refund-policy fixture is the canonical first end-to-end demo and regression fixture. | Accepted |
 | ADR-011 | Mutation score counts valid killed/survived mutants only; invalid/timeouts/errors are reported separately. | Accepted |
 | ADR-012 | A surviving mutant is a potential test gap, not automatically a production bug. | Accepted |
+| ADR-013 | Generated candidate tests are created as new files in isolated workspaces; existing user tests are never overwritten/appended. | Accepted |
+| ADR-014 | Exact before/after mutation-score claims require rerunning the same validated mutation batch with the verified candidate. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -36,6 +38,14 @@ The demo is primarily server-to-client progress. SSE keeps the protocol simpler 
 ## ADR-008 — CI boundary
 
 Provider credentials, quota, latency, and outages should not make every development commit nondeterministic. Live services are tested at explicit preflight/rehearsal gates, while core logic is continuously covered by deterministic fixtures.
+
+## ADR-013 — Generated-test materialization
+
+The model's target test path is contextual input, not arbitrary write authority. The materializer validates the target location, derives a unique sibling candidate filename, and creates a new file in the isolated workspace. Existing tests remain unchanged.
+
+## ADR-014 — Mutation-score comparison
+
+PERJURY does not claim a precise post-hardening score by assuming previously killed mutants remain killed. For the small 6–10-mutant MVP batch, the verified candidate is applied and the same validated batch is rerun. Invalid/timeouts/errors remain excluded from the denominator and visible in evidence.
 
 ## Changing a decision
 
