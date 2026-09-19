@@ -96,6 +96,7 @@ perjury/
   mutation.py        isolated exact-anchor mutation applicator
   fanout.py          bounded concurrent mutation fan-out
   context.py         deterministic Gemini source/test context packer
+  planning.py        mutation planning/validation/replenishment
   verification.py    deterministic verdict logic
   api.py             FastAPI surface
 examples/refund/
