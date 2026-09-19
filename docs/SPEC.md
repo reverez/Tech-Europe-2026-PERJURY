@@ -32,7 +32,7 @@ The LLM never decides the final verdict.
 
 The hackathon MVP supports:
 
-1. Python 3.12+.
+1. Python 3.12.x.
 2. pytest.
 3. One immutable repository/workspace snapshot per run.
 4. A known structured install command when installation is required.
