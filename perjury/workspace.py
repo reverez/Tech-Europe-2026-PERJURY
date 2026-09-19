@@ -316,6 +316,7 @@ def run_baseline(
     result = BaselineResult(
         workspace_id=spec.workspace_id,
         source_snapshot_id=spec.snapshot_id,
+        manifest=manifest,
         manifest_sha256=manifest.manifest_sha256,
         post_execution_manifest_sha256=post_execution_manifest.manifest_sha256,
         execution=execution,
