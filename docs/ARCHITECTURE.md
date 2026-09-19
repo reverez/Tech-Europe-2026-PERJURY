@@ -92,7 +92,8 @@ Target shape for #4:
 - sanitized snapshot exclusions;
 - max captured stdout/stderr bytes and truncation policy;
 - maximum snapshot file count/total bytes;
-- explicit network policy, defaulting to blocked.
+- explicit network policy, defaulting to blocked;
+- explicit non-secret environment mapping/allowlist; target execution never inherits arbitrary host environment.
 
 Commands are structured argv-like data, not interpolated shell strings.
 
@@ -107,6 +108,8 @@ The shared semantic execution taxonomy from #8:
 - **INVALID** — mutation/test/command is structurally unusable, including collection/usage/no-test cases as specified.
 - **TIMEOUT** — allowed execution time was exceeded.
 - **INFRA_ERROR** — Sandbox/bootstrap/dependency/runtime/provider failure.
+
+Primary command outcome is recorded separately from cleanup/teardown problems so a successful or test-failing pytest process is not silently rewritten by a later cleanup failure.
 
 Raw exit code, stdout, and stderr remain evidence fields but do not replace the semantic outcome.
 
@@ -156,8 +159,10 @@ Required controls:
 9. stdout/stderr capture is bounded and marks truncation;
 10. snapshot file-count/byte limits reject oversized workspaces before upload;
 11. pytest Sandboxes block outbound network by default; any opt-in is explicit in WorkspaceSpec/evidence;
-12. Sandboxes terminate on success, failure, exception, and timeout;
-13. unsupported target setup fails explicitly rather than being guessed.
+12. execution receives only the explicit sanitized environment from WorkspaceSpec;
+13. Sandboxes terminate on success, failure, exception, and timeout;
+14. cleanup/teardown errors are retained separately from the primary pytest outcome;
+15. unsupported target setup fails explicitly rather than being guessed.
 
 ## 7. Concurrency model
 
