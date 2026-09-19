@@ -124,10 +124,16 @@ class HardeningResult(BaseModel):
 
     @model_validator(mode="after")
     def verdict_must_match_evidence(self) -> HardeningResult:
-        if self.verdict == "verified" and not self.evidence.verified:
+        if self.evidence.verified:
+            expected = "verified"
+        elif self.evidence.original_outcome is ExecutionOutcome.TEST_FAIL:
+            expected = "rejected"
+        else:
+            expected = "inconclusive"
+
+        if self.verdict != expected:
             raise ValueError(
-                "A hardening result cannot be verified unless the generated test "
-                "passes on the original and produces a normal pytest test failure "
-                "on the mutant."
+                f"Verdict {self.verdict!r} contradicts semantic verification "
+                f"evidence; expected {expected!r}."
             )
         return self
