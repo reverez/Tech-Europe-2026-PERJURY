@@ -4,14 +4,14 @@ This deliberately hard-codes one semantic mutation and one regression test.
 The next milestone replaces those two hard-coded artifacts with Gemini output
 while keeping the execution and verification path unchanged.
 
-This script is intentionally stricter than the legacy verifier: until issue #8
-lands the semantic execution taxonomy, it accepts the golden path only when the
-original exits exactly 0 and the mutant exits exactly 1.
+The script uses PERJURY's semantic execution outcomes: the original must PASS
+and the mutant must produce TEST_FAIL. Invalid, timeout, or infrastructure
+outcomes are never accepted as verification evidence.
 """
 
 from __future__ import annotations
 
-from perjury.contracts import MutationStatus, VerificationEvidence
+from perjury.contracts import ExecutionOutcome, MutationStatus, VerificationEvidence
 from perjury.modal_runner import RunSpec, execute_pytest
 from perjury.verification import judge_verification
 
@@ -106,7 +106,7 @@ def main() -> None:
         f"   exit={baseline.exit_code} duration={baseline.duration_ms}ms "
         f"status={baseline.status}"
     )
-    if baseline.exit_code != 0 or baseline.status is not MutationStatus.SURVIVED:
+    if baseline.outcome is not ExecutionOutcome.PASS:
         raise SystemExit("Baseline is not a clean pytest pass; aborting mutation analysis.")
 
     print("\n2. Attack: remove premium refund eligibility")
@@ -115,7 +115,7 @@ def main() -> None:
         f"   exit={mutant.exit_code} duration={mutant.duration_ms}ms "
         f"status={mutant.status}"
     )
-    if mutant.exit_code != 0 or mutant.status is not MutationStatus.SURVIVED:
+    if mutant.outcome is not ExecutionOutcome.PASS:
         raise SystemExit("Expected M01 to survive the incomplete test suite.")
 
     print("\n3. Proposed regression test")
@@ -137,11 +137,11 @@ def main() -> None:
         include_generated_test=True,
     )
 
-    if original_with_test.exit_code != 0:
+    if original_with_test.outcome is not ExecutionOutcome.PASS:
         raise SystemExit(
             "Original + generated test was not a clean pytest pass; refusing verification."
         )
-    if mutant_with_test.exit_code != 1:
+    if mutant_with_test.outcome is not ExecutionOutcome.TEST_FAIL:
         raise SystemExit(
             "Mutant + generated test was not an ordinary pytest test failure; "
             "refusing verification."
@@ -149,6 +149,8 @@ def main() -> None:
 
     evidence = VerificationEvidence(
         mutation_id="M01",
+        original_outcome=original_with_test.outcome,
+        mutant_outcome=mutant_with_test.outcome,
         original_exit_code=original_with_test.exit_code,
         mutant_exit_code=mutant_with_test.exit_code,
         original_stdout=original_with_test.stdout,
