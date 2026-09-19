@@ -8,7 +8,8 @@ import modal
 from .contracts import ExecutionResult, MutationStatus
 
 
-app = modal.App("perjury")
+# A persisted app can be used directly by Sandbox.create from local code.
+app = modal.App.lookup("perjury", create_if_missing=True)
 runtime = modal.Image.debian_slim(python_version="3.12").pip_install("pytest>=8.4")
 
 
@@ -31,7 +32,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
     """Minimal Modal execution primitive.
 
     The hackathon spike should exercise this boundary first. The production path will
-    mount/copy a workspace, apply a mutation, run pytest, and return this typed result.
+    copy a workspace, apply a mutation, run pytest, and return this typed result.
     """
     started = time.perf_counter()
 
@@ -47,7 +48,7 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         process.wait()
         code = process.returncode
     finally:
-        sandbox.terminate()
+        sandbox.terminate(wait=True)
 
     return ExecutionResult(
         mutation_id=spec.mutation_id,
