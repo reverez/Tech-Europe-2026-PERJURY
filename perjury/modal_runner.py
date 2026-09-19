@@ -34,6 +34,17 @@ class RunSpec:
     workspace: str = "/workspace"
 
 
+def _is_pytest_command(command: tuple[str, ...]) -> bool:
+    return bool(command) and (
+        command[0] == "pytest"
+        or (
+            len(command) >= 3
+            and command[0] in {"python", "python3"}
+            and command[1:3] == ("-m", "pytest")
+        )
+    )
+
+
 def classify_pytest_exit_code(code: int) -> ExecutionOutcome:
     """Map pytest process exits to PERJURY semantics.
 
@@ -64,6 +75,15 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
     Commands remain structured argv values and execute with Modal's workdir option.
     """
     started = time.perf_counter()
+    if not _is_pytest_command(spec.command):
+        return ExecutionResult(
+            mutation_id=spec.mutation_id,
+            outcome=ExecutionOutcome.INVALID,
+            exit_code=None,
+            stderr="execute_pytest accepts only pytest or python -m pytest commands.",
+            duration_ms=0,
+        )
+
     sandbox = None
     outcome = ExecutionOutcome.INFRA_ERROR
     exit_code = None
