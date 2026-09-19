@@ -15,6 +15,7 @@
 | Dependency/runtime drift | fresh install resolves behavior different from rehearsal | Python 3.12.x + pinned direct dependencies + pip check | revert to frozen versions and rerun CI/preflight | #22/#24 |
 | Scope creep | new language/GitHub automation/etc. appears on critical path | enforce SPEC + decisions | defer to post-hackathon backlog | parent epics |
 | Parallel agent merge collision | same contract file edited concurrently | lane ownership + short branches + rebase | serialize contract changes | DEVELOPMENT_WORKFLOW |
+| Unprotected main branch | direct pushes can bypass CI/dependency gates | single-writer convention; multi-agent branches; current-SHA writes | manually enable required-status branch protection when practical | DEVELOPMENT_WORKFLOW |
 | Documentation drift | commands/issue numbers no longer match code | doc update matrix + final audit | block #23 sign-off | #23 |
 | Secret copied into Sandbox | .env/local runtime files appear in upload manifest | sanitized WorkspaceSpec manifest + denylist + tests | abort run; fix manifest before execution | #4/#6 |
 | Secret leakage | keys appear in logs/evidence | env-only credentials + bounded output + redaction | revoke key, purge artifact, rerun | #19 |
