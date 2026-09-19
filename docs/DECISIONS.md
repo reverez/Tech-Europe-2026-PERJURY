@@ -24,6 +24,7 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-018 | Modal workspaces are built from a sanitized manifest; secrets/runtime directories are never blindly uploaded, and mutations can target implementation allowlists only. | Accepted |
 | ADR-019 | Process output capture is bounded and carries explicit truncation metadata through evidence/API. | Accepted |
 | ADR-020 | Hackathon execution is standardized on Python 3.12.x and validated direct dependencies are pinned in `pyproject.toml`. | Accepted |
+| ADR-021 | Pytest Sandboxes block outbound network by default; future network access requires explicit WorkspaceSpec opt-in. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -76,6 +77,10 @@ Tests can print arbitrarily large output or accidentally expose sensitive text. 
 ## ADR-020 — Runtime/dependency freeze
 
 Local bootstrap, deterministic CI, and Modal target Python 3.12. Direct runtime/dev dependencies are pinned to the versions already resolved by the CI runner during this audit. This removes avoidable same-day package drift while preserving a simple editable install. Dependency changes require the deterministic gate plus the relevant Gemini/Modal smoke when that dependency touches an external boundary.
+
+## ADR-021 — Default-deny Sandbox network
+
+Target tests and generated tests are treated as untrusted execution. The bundled MVP does not need network access, so pytest Sandboxes set Modal's network blocking by default. If later target support genuinely requires network access, WorkspaceSpec must make that opt-in explicit and the evidence bundle must record it. Credentials are still never forwarded merely because network is enabled.
 
 ## Changing a decision
 
