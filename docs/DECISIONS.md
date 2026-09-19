@@ -23,6 +23,7 @@ This file records decisions that downstream issues should treat as settled unles
 | ADR-017 | Sanitized evidence is persisted under gitignored `.perjury/runs/<run_id>/evidence.json`; no database is introduced. | Accepted |
 | ADR-018 | Modal workspaces are built from a sanitized manifest; secrets/runtime directories are never blindly uploaded, and mutations can target implementation allowlists only. | Accepted |
 | ADR-019 | Process output capture is bounded and carries explicit truncation metadata through evidence/API. | Accepted |
+| ADR-020 | Hackathon execution is standardized on Python 3.12.x and validated direct dependencies are pinned in `pyproject.toml`. | Accepted |
 
 ## ADR-001 — Deterministic proof boundary
 
@@ -71,6 +72,10 @@ A target repository is not copied wholesale into Modal. WorkspaceSpec drives an 
 ## ADR-019 — Bounded output
 
 Tests can print arbitrarily large output or accidentally expose sensitive text. Execution captures bounded stdout/stderr, records whether truncation occurred, and preserves that metadata through evidence/API so a truncated log is never presented as complete.
+
+## ADR-020 — Runtime/dependency freeze
+
+Local bootstrap, deterministic CI, and Modal target Python 3.12. Direct runtime/dev dependencies are pinned to the versions already resolved by the CI runner during this audit. This removes avoidable same-day package drift while preserving a simple editable install. Dependency changes require the deterministic gate plus the relevant Gemini/Modal smoke when that dependency touches an external boundary.
 
 ## Changing a decision
 
