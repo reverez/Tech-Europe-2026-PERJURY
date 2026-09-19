@@ -18,6 +18,7 @@
 | Unprotected main branch | direct pushes can bypass CI/dependency gates | single-writer convention; multi-agent branches; current-SHA writes | manually enable required-status branch protection when practical | DEVELOPMENT_WORKFLOW |
 | Documentation drift | commands/issue numbers no longer match code | doc update matrix + final audit | block #23 sign-off | #23 |
 | Secret copied into Sandbox | .env/local runtime files appear in upload manifest | sanitized WorkspaceSpec manifest + denylist + tests | abort run; fix manifest before execution | #4/#6 |
+| Untrusted test network egress | target/generated test attempts outbound access | block Sandbox network by default; explicit WorkspaceSpec opt-in only | abort or use narrowly justified network-enabled target | #4/#6 |
 | Secret leakage | keys appear in logs/evidence | env-only credentials + bounded output + redaction | revoke key, purge artifact, rerun | #19 |
 | Demo code changes after successful rehearsal | commit SHA differs | evidence freeze records SHA | rerun preflight/rehearsal before presenting | #24 |
 
