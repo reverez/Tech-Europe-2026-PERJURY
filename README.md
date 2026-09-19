@@ -4,74 +4,118 @@
 
 PERJURY is an autonomous adversarial test-hardening agent built for the **{Tech: Europe} Agentic AI Hack — London, 19 September 2026**.
 
-It attacks a Python/pytest codebase with semantically meaningful mutations, executes those mutations concurrently in isolated Modal Sandboxes, identifies surviving mutants, asks Gemini to generate targeted regression tests, and accepts a generated test **only** after deterministic two-sided verification:
+It proposes semantically meaningful mutations, executes them against the real pytest suite in isolated Modal Sandboxes, identifies surviving mutants, asks Gemini for a targeted regression test, and accepts that candidate only after deterministic two-sided execution.
 
-1. the new test **passes on the original program**, and
-2. the same test **fails on the surviving mutant**.
+## Correctness invariant
 
-That invariant keeps the LLM out of the final correctness decision.
+A generated test is **verified** only when:
 
-## Why these partner technologies are load-bearing
+```text
+original + generated test  => PASS
+mutant   + generated test  => TEST_FAIL
+```
 
-- **Google Gemini** — proposes semantic mutations, explains surviving behaviours, and generates targeted tests.
-- **Pydantic + PydanticAI** — define and validate every model-to-execution contract.
-- **Modal** — runs mutation trials concurrently in isolated Sandboxes.
+`TEST_FAIL` means pytest ran normally and a test failed. Collection errors, command errors, timeouts, dependency failures, and infrastructure failures never count as proof.
+
+The LLM proposes; execution decides.
+
+## Why the partner technologies are load-bearing
+
+- **Google Gemini** — proposes semantic mutations, explains surviving behavior, and proposes targeted tests.
+- **Pydantic + PydanticAI** — validate every model-to-execution contract.
+- **Modal** — provides isolated concurrent execution for mutation trials.
+
+Gemini 3.8 Flash is the default configured model through `PERJURY_MODEL`; scripts use the same setting rather than maintaining a separate model choice.
+
+## MVP support contract
+
+The hackathon MVP intentionally supports a narrow, reproducible target:
+
+- Python 3.12+;
+- pytest;
+- one repository/workspace snapshot per run;
+- an explicit structured install command when needed;
+- an explicit structured pytest command;
+- roughly 6–10 semantic mutations;
+- the bundled refund-policy fixture as the canonical first demo.
+
+**Not promised for the hackathon:** arbitrary dependency discovery, multi-language mutation, GitHub PR automation, databases/services required by arbitrary target repos, formal equivalent-mutant proofs, or general multi-agent orchestration.
+
+Unsupported repository layouts should fail clearly rather than being guessed.
 
 ## Core loop
 
 ```text
-baseline pytest
+green baseline
      ↓
-Gemini proposes N semantic mutations
+Gemini proposes semantic mutations
      ↓
-Pydantic validates MutationBatch
+Pydantic validation + safe mutation preflight
      ↓
-Modal fans out N isolated pytest runs
+Modal bounded fan-out
      ↓
-killed / survived / invalid / timeout
+killed / survived / invalid / timeout / infrastructure error
      ↓
-Gemini analyses survivors
+select meaningful survivor
      ↓
-Gemini proposes targeted regression test
+Gemini analysis + pytest proposal
      ↓
-two-sided verification
-  original + test → PASS
-  mutant   + test → FAIL
+safe candidate materialization
      ↓
-verified hardening result
+original + candidate  => PASS
+mutant   + candidate  => TEST_FAIL
+     ↓
+deterministic verified hardening result
 ```
 
-## Hackathon scope
+## Current implementation status
 
-**In:** Python repositories, pytest, 6–10 mutations per run, one reliable live demo.
+The repository currently contains the protocol scaffold, Gemini/PydanticAI agents, a minimal Modal primitive, FastAPI skeleton, refund fixture, smoke scripts, tests, CI, and the full implementation roadmap.
 
-**Out today:** multi-language support, arbitrary dependency resolution, GitHub PR automation, databases, formal equivalent-mutant proofs, multi-agent orchestration.
+The production loop is **not yet complete**. In particular, issue **#8** is the correctness blocker that replaces raw non-zero-exit reasoning with semantic execution outcomes before the verification path is considered complete.
+
+Development is gated by the parent epics:
+
+- [P0 / M0 — deterministic execution foundation](../../issues/1)
+- [P1 / M1 — closed autonomous hardening loop](../../issues/2)
+- [P2 / M2 — live demo and observability](../../issues/3)
+- [P3 / M3 — submission validation and evidence freeze](../../issues/21)
 
 ## Repository layout
 
 ```text
 perjury/
-  contracts.py       # typed protocol crossing the model/execution boundary
-  agent.py           # PydanticAI/Gemini orchestration
-  modal_runner.py    # Modal sandbox execution boundary
-  verification.py    # deterministic two-sided acceptance invariant
-  api.py             # FastAPI surface
+  contracts.py       typed model/execution protocol
+  agent.py           Gemini/PydanticAI proposal stages
+  modal_runner.py    Modal execution boundary
+  verification.py    deterministic verdict logic
+  api.py             FastAPI surface
 examples/refund/
   refund.py
   test_refund.py
 scripts/
-  modal_spike.py     # first technical gate: concurrent sandbox + pytest
+  bootstrap.sh       deterministic environment bootstrap
+  check.sh           deterministic lint + test gate
+  gemini_smoke.py    live Gemini configuration smoke
+  modal_spike.py     live Modal concurrency smoke
 tests/
-  test_contracts.py
-  test_verification.py
+docs/
+.github/workflows/
+  ci.yml             credential-free deterministic CI
 ```
 
-## Project documentation
+## Documentation
 
-- [Frozen hackathon specification](docs/SPEC.md)
-- [Target architecture](docs/ARCHITECTURE.md)
-- [Implementation plan and milestone gates](docs/IMPLEMENTATION_PLAN.md)
-- GitHub epics: [P0 / M0](../../issues/1), [P1 / M1](../../issues/2), [P2 / M2](../../issues/3), [P3 / M3](../../issues/21)
+Read these in order when implementing:
+
+1. [Frozen hackathon specification](docs/SPEC.md)
+2. [Target architecture](docs/ARCHITECTURE.md)
+3. [Architecture decisions](docs/DECISIONS.md)
+4. [Implementation plan](docs/IMPLEMENTATION_PLAN.md)
+5. [Development workflow](docs/DEVELOPMENT_WORKFLOW.md)
+6. [Test strategy](docs/TEST_STRATEGY.md)
+7. [Risk register](docs/RISK_REGISTER.md)
+8. [Demo runbook](docs/DEMO_RUNBOOK.md)
 
 ## Setup
 
@@ -80,56 +124,34 @@ Requires Python 3.12+.
 ```bash
 git clone https://github.com/reverez/Tech-Europe-2026-PERJURY.git
 cd Tech-Europe-2026-PERJURY
-
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-
-pip install -e ".[dev]"
-cp .env.example .env
+bash scripts/bootstrap.sh
 ```
 
-Authenticate Modal:
+The bootstrap is deliberately deterministic: it installs the project, creates `.env` if needed, and runs local tests. It does **not** authenticate or call external services.
+
+Run the deterministic gate at any time with:
 
 ```bash
+bash scripts/check.sh
+```
+
+Then configure external services separately:
+
+```bash
+# add GOOGLE_API_KEY to .env first
+python scripts/gemini_smoke.py
+
 modal setup
-```
-
-Then add your Gemini API key to `.env`.
-
-## First gate — Modal concurrency spike
-
-Before building the UI, prove the execution primitive:
-
-```bash
 python scripts/modal_spike.py
 ```
 
-Target: launch roughly 10 isolated pytest executions concurrently and collect structured results quickly and reliably. If this primitive is unstable, the project pivots before any time is spent polishing the demo.
+This separation prevents provider credentials, quotas, or outages from making every development commit nondeterministic.
 
-## Local checks
+## Demo fixture
 
-```bash
-pytest
-uvicorn perjury.api:app --reload
-```
+The bundled refund example intentionally lacks coverage for a premium customer outside the normal refund window. The target demonstration is for PERJURY to expose a semantic mutation affecting that behavior, propose the missing regression test, and prove the candidate through the deterministic two-sided invariant.
 
-## Correctness rule
-
-A generated test is never accepted because Gemini says it is good.
-
-```text
-PASS(original + generated test)
-AND
-FAIL(mutant + generated test)
-= VERIFIED TEST
-```
-
-A surviving mutant is reported as a **potential test gap**, not automatically as a bug: equivalent mutants remain a known mutation-testing limitation.
-
-## Demo target
-
-The first demo uses a small refund-policy module with a superficially strong test suite. PERJURY creates semantic attacks such as deleting the premium-customer exception, exposes the surviving behaviour, generates the missing regression test, and proves it through two-sided execution.
+A surviving mutant is always described as a **potential test gap**, not automatically as a production bug. Equivalent mutants remain a known limitation of mutation testing.
 
 ---
 
