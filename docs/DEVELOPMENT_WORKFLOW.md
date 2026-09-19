@@ -67,15 +67,16 @@ Critical path:
   -> #12 survivor analysis
   -> #13 generated-test materialization
   -> #14 two-sided verification
+  -> #25 same-batch re-score
   -> #15 run state machine/orchestrator
   -> #16 deterministic E2E
 
-#17 API/events
+#16 -> #17 API/events
   -> #18 UI
-#15 -> #19 evidence/observability
+#16 -> #19 evidence/observability
 #17 + #18 + #19 -> #20 preflight/rehearsal
 
-#20 + #22 -> #24 final validation/freeze
+#20 + #22 + #16 -> #24 final validation/freeze
 #24 -> #23 final documentation sign-off
 ```
 
@@ -86,7 +87,7 @@ Safe parallelism is encouraged only where contracts are stable.
 | Lane | Primary issues | High-contention files |
 | --- | --- | --- |
 | Execution | #4–#8 | `contracts.py`, `modal_runner.py` |
-| Agent pipeline | #9–#14 | `contracts.py`, `agent.py` |
+| Agent pipeline | #9–#14, #25 | `contracts.py`, `agent.py` |
 | Orchestration/API | #15, #17, #19 | run/event contracts, `api.py` |
 | Demo UI | #18 | zero-build static frontend/API schema |
 | Validation/docs | #20, #23, #24 | scripts, README, docs |
