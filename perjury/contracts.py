@@ -321,6 +321,7 @@ class ExecutionResult(BaseModel):
 class BaselineResult(BaseModel):
     workspace_id: str
     source_snapshot_id: str
+    manifest: SnapshotManifest
     manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     post_execution_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
     execution: ExecutionResult
@@ -336,6 +337,13 @@ class BaselineResult(BaseModel):
 
     @model_validator(mode="after")
     def execution_identity_must_match_workspace(self) -> BaselineResult:
+        if self.manifest.workspace_id != self.workspace_id:
+            raise ValueError("Baseline manifest workspace_id must match BaselineResult.")
+        if self.manifest.source_snapshot_id != self.source_snapshot_id:
+            raise ValueError("Baseline manifest snapshot identity must match BaselineResult.")
+        if self.manifest.manifest_sha256 != self.manifest_sha256:
+            raise ValueError("Baseline manifest hash must match retained manifest evidence.")
+
         expected = f"baseline:{self.workspace_id}"
         if self.execution.execution_id != expected:
             raise ValueError(
