@@ -52,7 +52,7 @@ echo
 echo "Bootstrap complete."
 echo "External services are deliberately NOT invoked by bootstrap."
 echo "Next:"
-echo "  1) Continue M0 with issue #4 (WorkspaceSpec and baseline contract)."
+echo "  1) Continue M0 with issue #5 (deterministic mutation applicator)."
 echo "  2) Put GOOGLE_API_KEY in .env, then run: python scripts/gemini_smoke.py"
 echo "  3) Authenticate Modal separately with: modal setup"
 echo "  4) Run the Modal smoke separately with: python scripts/modal_spike.py"
