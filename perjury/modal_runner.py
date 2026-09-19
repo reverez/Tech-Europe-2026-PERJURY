@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import shlex
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from pathlib import PurePosixPath
 
 import modal
 
@@ -16,6 +18,8 @@ runtime = modal.Image.debian_slim(python_version="3.12").pip_install("pytest>=8.
 class RunSpec:
     mutation_id: str
     command: tuple[str, ...] = ("pytest", "-q")
+    workspace_files: dict[str, str] = field(default_factory=dict)
+    workspace: str = "/workspace"
 
 
 def classify_exit_code(code: int) -> MutationStatus:
@@ -27,11 +31,19 @@ def classify_exit_code(code: int) -> MutationStatus:
     return MutationStatus.INVALID
 
 
-def execute_pytest(spec: RunSpec) -> ExecutionResult:
-    """Minimal Modal execution primitive.
+def _remote_path(workspace: str, relative_path: str) -> str:
+    path = PurePosixPath(relative_path)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"workspace file must be a safe relative path: {relative_path!r}")
+    return str(PurePosixPath(workspace) / path)
 
-    The hackathon spike should exercise this boundary first. The production path will
-    copy a workspace, apply a mutation, run pytest, and return this typed result.
+
+def execute_pytest(spec: RunSpec) -> ExecutionResult:
+    """Run one mutation candidate in an isolated Modal Sandbox.
+
+    If workspace_files are supplied, they are materialized under /workspace and
+    the command is executed from that directory. This is the core execution
+    boundary used by the mutation and two-sided verification loops.
     """
     started = time.perf_counter()
 
@@ -41,7 +53,18 @@ def execute_pytest(spec: RunSpec) -> ExecutionResult:
         timeout=120,
     )
     try:
-        process = sandbox.exec(*spec.command)
+        for relative_path, contents in spec.workspace_files.items():
+            sandbox.filesystem.write_text(
+                contents,
+                _remote_path(spec.workspace, relative_path),
+            )
+
+        if spec.workspace_files:
+            shell_command = f"cd {shlex.quote(spec.workspace)} && {shlex.join(spec.command)}"
+            process = sandbox.exec("bash", "-lc", shell_command)
+        else:
+            process = sandbox.exec(*spec.command)
+
         stdout = process.stdout.read()
         stderr = process.stderr.read()
         process.wait()
