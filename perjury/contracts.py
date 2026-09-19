@@ -287,6 +287,25 @@ class MutationBatch(BaseModel):
     mutations: list[MutationProposal] = Field(min_length=1, max_length=20)
 
 
+class AppliedMutation(BaseModel):
+    mutation_id: str = Field(pattern=r"^M\d{2,}$")
+    base_snapshot_id: str
+    base_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    target_path: str
+    original_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    mutated_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    mutated_manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    diff: str = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def mutation_evidence_must_show_a_real_change(self) -> AppliedMutation:
+        if self.original_sha256 == self.mutated_sha256:
+            raise ValueError("Applied mutation must change the target file content hash.")
+        if self.base_manifest_sha256 == self.mutated_manifest_sha256:
+            raise ValueError("Applied mutation must change the workspace manifest identity.")
+        return self
+
+
 class ExecutionResult(BaseModel):
     execution_id: str
     outcome: ExecutionOutcome
