@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import fnmatch
-import hashlib
 import os
 import subprocess
 import sys
@@ -17,6 +16,7 @@ from .contracts import (
     SnapshotManifest,
     WorkspaceSpec,
     execution_outcome_for_pytest_exit,
+    snapshot_manifest_sha256,
 )
 
 
@@ -85,8 +85,6 @@ def build_snapshot_manifest(spec: WorkspaceSpec) -> SnapshotManifest:
 
     files: list[SnapshotFile] = []
     total_bytes = 0
-    manifest_digest = hashlib.sha256()
-
     for dirpath, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
         current = Path(dirpath)
 
@@ -135,13 +133,10 @@ def build_snapshot_manifest(spec: WorkspaceSpec) -> SnapshotManifest:
                 )
             )
             total_bytes += size
-            manifest_digest.update(relative.encode("utf-8"))
-            manifest_digest.update(b"\0")
-            manifest_digest.update(bytes.fromhex(file_digest))
-
     if not files:
         raise SnapshotPolicyError("Sanitized snapshot contains no files.")
 
+    files.sort(key=lambda file: file.path)
     manifest_paths = {file.path for file in files}
     for allowed in (*spec.mutable_paths, *spec.context_paths):
         if not _allowlist_path_present(allowed, manifest_paths):
@@ -152,7 +147,7 @@ def build_snapshot_manifest(spec: WorkspaceSpec) -> SnapshotManifest:
     return SnapshotManifest(
         workspace_id=spec.workspace_id,
         source_snapshot_id=spec.snapshot_id,
-        manifest_sha256=f"sha256:{manifest_digest.hexdigest()}",
+        manifest_sha256=snapshot_manifest_sha256(tuple(files)),
         files=tuple(files),
         total_bytes=total_bytes,
     )
