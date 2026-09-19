@@ -1,9 +1,46 @@
 from __future__ import annotations
 
+import re
 from enum import StrEnum
+from pathlib import PurePosixPath
 from typing import Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
+
+CANONICAL_SNAPSHOT_EXCLUSIONS: tuple[str, ...] = (
+    ".git",
+    ".venv",
+    ".env",
+    ".perjury",
+    "__pycache__",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".nox",
+    "build",
+    "dist",
+    "node_modules",
+    "*.pyc",
+)
+
+_SHELL_EXECUTABLES = {
+    "bash",
+    "cmd",
+    "cmd.exe",
+    "fish",
+    "powershell",
+    "powershell.exe",
+    "pwsh",
+    "sh",
+    "zsh",
+}
+_ENV_NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_SECRET_ENV_NAME = re.compile(
+    r"(?:^|_)(?:API_?KEY|TOKEN|SECRET|PASSWORD|PASSWD|PRIVATE_?KEY|CREDENTIALS?)(?:$|_)",
+    re.IGNORECASE,
+)
+_PYTHON_EXECUTABLE = re.compile(r"^python(?:3(?:\.12)?)?(?:\.exe)?$", re.IGNORECASE)
 
 
 class ExecutionOutcome(StrEnum):
@@ -20,6 +57,11 @@ class MutationStatus(StrEnum):
     INVALID = "invalid"
     TIMEOUT = "timeout"
     INFRA_ERROR = "infra_error"
+
+
+class NetworkPolicy(StrEnum):
+    BLOCKED = "blocked"
+    ENABLED = "enabled"
 
 
 def execution_outcome_for_pytest_exit(code: int) -> ExecutionOutcome:
@@ -43,6 +85,192 @@ def mutation_status_for(outcome: ExecutionOutcome) -> MutationStatus:
     }[outcome]
 
 
+def is_pytest_command(argv: tuple[str, ...]) -> bool:
+    if not argv:
+        return False
+    executable = PurePosixPath(argv[0]).name
+    if executable in {"pytest", "pytest.exe"}:
+        return True
+    return (
+        len(argv) >= 3
+        and bool(_PYTHON_EXECUTABLE.fullmatch(executable))
+        and argv[1:3] == ("-m", "pytest")
+    )
+
+
+def _validate_argv(argv: tuple[str, ...], *, require_pytest: bool = False) -> tuple[str, ...]:
+    if not argv:
+        raise ValueError("Command argv cannot be empty.")
+    if any(not isinstance(arg, str) or not arg or "\x00" in arg for arg in argv):
+        raise ValueError("Command argv entries must be non-empty strings without NUL bytes.")
+
+    executable = PurePosixPath(argv[0]).name.lower()
+    if executable in _SHELL_EXECUTABLES:
+        raise ValueError("Shell executables are forbidden; commands must remain structured argv.")
+
+    if require_pytest and not is_pytest_command(argv):
+        raise ValueError("pytest_argv must invoke pytest directly or via python -m pytest.")
+    return argv
+
+
+def _validate_repo_relative_path(value: str, *, allow_dot: bool) -> str:
+    if not value or "\x00" in value or "\\" in value:
+        raise ValueError("Repository paths must be non-empty POSIX paths without NUL/backslashes.")
+    path = PurePosixPath(value)
+    if path.is_absolute() or ".." in path.parts:
+        raise ValueError(f"Unsafe repository-relative path: {value!r}")
+    normalized = str(path)
+    if normalized == "." and not allow_dot:
+        raise ValueError("A concrete repository-relative path is required.")
+    return normalized
+
+
+def _paths_overlap(left: str, right: str) -> bool:
+    left_path = PurePosixPath(left)
+    right_path = PurePosixPath(right)
+    return (
+        left_path == right_path
+        or left_path in right_path.parents
+        or right_path in left_path.parents
+    )
+
+
+class WorkspaceSpec(BaseModel):
+    workspace_id: str = Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+    source_root: str = Field(min_length=1, max_length=4096)
+    snapshot_id: str = Field(min_length=1, max_length=160)
+    python_version: Literal["3.12"] = "3.12"
+    install_argv: tuple[str, ...] | None = None
+    pytest_argv: tuple[str, ...] = ("python", "-m", "pytest", "-q")
+    working_directory: str = "."
+    command_timeout_seconds: int = Field(default=120, ge=1, le=300)
+    mutation_concurrency: int = Field(default=8, ge=1, le=10)
+    mutable_paths: tuple[str, ...] = Field(min_length=1)
+    context_paths: tuple[str, ...] = Field(min_length=1)
+    exclusion_patterns: tuple[str, ...] = CANONICAL_SNAPSHOT_EXCLUSIONS
+    max_output_bytes: int = Field(default=65_536, ge=1_024, le=1_048_576)
+    max_snapshot_files: int = Field(default=512, ge=1, le=5_000)
+    max_snapshot_bytes: int = Field(default=10_485_760, ge=1_024, le=104_857_600)
+    network_policy: NetworkPolicy = NetworkPolicy.BLOCKED
+    environment: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("source_root")
+    @classmethod
+    def source_root_must_be_plain_path(cls, value: str) -> str:
+        if "\x00" in value:
+            raise ValueError("source_root cannot contain NUL bytes.")
+        return value
+
+    @field_validator("working_directory")
+    @classmethod
+    def working_directory_must_be_relative(cls, value: str) -> str:
+        return _validate_repo_relative_path(value, allow_dot=True)
+
+    @field_validator("mutable_paths", "context_paths")
+    @classmethod
+    def allowlists_must_be_safe_relative_paths(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        normalized = tuple(_validate_repo_relative_path(value, allow_dot=False) for value in values)
+        if len(normalized) != len(set(normalized)):
+            raise ValueError("Workspace path allowlists cannot contain duplicates.")
+        return normalized
+
+    @field_validator("exclusion_patterns")
+    @classmethod
+    def exclusions_must_include_canonical_policy(
+        cls,
+        values: tuple[str, ...],
+    ) -> tuple[str, ...]:
+        if any(not value or "\x00" in value for value in values):
+            raise ValueError("Snapshot exclusion patterns must be non-empty and NUL-free.")
+        missing = set(CANONICAL_SNAPSHOT_EXCLUSIONS).difference(values)
+        if missing:
+            raise ValueError(
+                "Snapshot exclusions cannot remove canonical safety entries: "
+                + ", ".join(sorted(missing))
+            )
+        return values
+
+    @field_validator("install_argv")
+    @classmethod
+    def install_command_must_be_structured(
+        cls,
+        value: tuple[str, ...] | None,
+    ) -> tuple[str, ...] | None:
+        if value is None:
+            return None
+        return _validate_argv(value)
+
+    @field_validator("pytest_argv")
+    @classmethod
+    def pytest_command_must_be_structured(cls, value: tuple[str, ...]) -> tuple[str, ...]:
+        return _validate_argv(value, require_pytest=True)
+
+    @field_validator("environment")
+    @classmethod
+    def environment_must_be_explicit_and_non_secret(
+        cls,
+        value: dict[str, str],
+    ) -> dict[str, str]:
+        if len(value) > 32:
+            raise ValueError("Workspace environment is limited to 32 explicit variables.")
+        cleaned: dict[str, str] = {}
+        for name, env_value in value.items():
+            if not _ENV_NAME.fullmatch(name):
+                raise ValueError(f"Invalid environment variable name: {name!r}")
+            if _SECRET_ENV_NAME.search(name):
+                raise ValueError(f"Secret-like environment variable is forbidden: {name!r}")
+            if "\x00" in env_value or len(env_value) > 4096:
+                raise ValueError(
+                    f"Environment value for {name!r} must be NUL-free and at most 4096 chars."
+                )
+            cleaned[name] = env_value
+        return cleaned
+
+    @model_validator(mode="after")
+    def mutable_and_context_paths_must_be_separate(self) -> WorkspaceSpec:
+        overlaps = [
+            (mutable, context)
+            for mutable in self.mutable_paths
+            for context in self.context_paths
+            if _paths_overlap(mutable, context)
+        ]
+        if overlaps:
+            mutable, context = overlaps[0]
+            raise ValueError(
+                "Mutable implementation paths must not overlap context/test paths: "
+                f"{mutable!r} vs {context!r}."
+            )
+        return self
+
+
+class SnapshotFile(BaseModel):
+    path: str
+    size_bytes: int = Field(ge=0)
+    sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+
+
+class SnapshotManifest(BaseModel):
+    workspace_id: str
+    source_snapshot_id: str
+    manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    files: tuple[SnapshotFile, ...]
+    total_bytes: int = Field(ge=0)
+
+    @computed_field
+    @property
+    def file_count(self) -> int:
+        return len(self.files)
+
+    @model_validator(mode="after")
+    def totals_must_match_files(self) -> SnapshotManifest:
+        expected = sum(file.size_bytes for file in self.files)
+        if self.total_bytes != expected:
+            raise ValueError(
+                f"Snapshot total_bytes={self.total_bytes} does not match file sum={expected}."
+            )
+        return self
+
+
 class MutationProposal(BaseModel):
     id: str = Field(pattern=r"^M\d{2,}$")
     file_path: str
@@ -64,6 +292,9 @@ class ExecutionResult(BaseModel):
     stdout: str = ""
     stderr: str = ""
     duration_ms: int = Field(ge=0)
+    stdout_truncated: bool = False
+    stderr_truncated: bool = False
+    failure_detail: str | None = None
     cleanup_error: str | None = None
 
     @property
@@ -82,6 +313,31 @@ class ExecutionResult(BaseModel):
                 )
         elif self.outcome in {ExecutionOutcome.PASS, ExecutionOutcome.TEST_FAIL}:
             raise ValueError(f"{self.outcome.value!r} requires a concrete pytest exit code.")
+        return self
+
+
+class BaselineResult(BaseModel):
+    workspace_id: str
+    source_snapshot_id: str
+    manifest_sha256: str = Field(pattern=r"^sha256:[0-9a-f]{64}$")
+    execution: ExecutionResult
+
+    @computed_field
+    @property
+    def ready_for_mutation(self) -> bool:
+        return (
+            self.execution.outcome is ExecutionOutcome.PASS
+            and self.execution.cleanup_error is None
+        )
+
+    @model_validator(mode="after")
+    def execution_identity_must_match_workspace(self) -> BaselineResult:
+        expected = f"baseline:{self.workspace_id}"
+        if self.execution.execution_id != expected:
+            raise ValueError(
+                f"Baseline execution_id must be {expected!r}, "
+                f"not {self.execution.execution_id!r}."
+            )
         return self
 
 
