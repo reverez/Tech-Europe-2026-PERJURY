@@ -12,7 +12,13 @@ Confirm:
 - Modal authentication is valid;
 - bundled refund fixture baseline is green.
 
-Run the implemented preflight command from #20. Until that command exists, the constituent smoke paths are:
+Once #20 is implemented, run the required preflight entrypoint:
+
+```bash
+python scripts/preflight.py
+```
+
+Until that command exists, the constituent smoke paths are:
 
 ```bash
 pytest -q
