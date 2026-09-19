@@ -86,7 +86,11 @@ Target shape for #4:
 - structured pytest argv;
 - working directory;
 - execution timeout;
-- mutation concurrency limit.
+- mutation concurrency limit;
+- mutable implementation-path allowlist;
+- test/context path allowlist;
+- sanitized snapshot exclusions;
+- max captured stdout/stderr bytes and truncation policy.
 
 Commands are structured argv-like data, not interpolated shell strings.
 
@@ -137,13 +141,16 @@ Every mutation/test trial operates on its own isolated workspace.
 
 Required controls:
 1. repository-relative paths only;
-2. reject absolute paths and traversal;
-3. exact original snippet anchor must match once;
-4. source snapshot is immutable during a run;
-5. generated tests are created as new files in an allowed test directory inside an isolated candidate workspace; existing tests are not overwritten/appended;
-6. every applied change has a renderable diff;
-7. Sandboxes terminate on success, failure, exception, and timeout;
-8. unsupported target setup fails explicitly rather than being guessed.
+2. resolve paths and reject absolute paths, traversal, and symlink escape;
+3. mutations may target only the mutable implementation allowlist, never tests/context/excluded files;
+4. snapshot upload is manifest-driven and excludes secrets/runtime directories rather than copying the repository blindly;
+5. exact original snippet anchor must match once;
+6. source snapshot is immutable during a run;
+7. generated tests are created as new files in an allowed test directory inside an isolated candidate workspace; existing tests are not overwritten/appended;
+8. every applied change has a renderable diff;
+9. stdout/stderr capture is bounded and marks truncation;
+10. Sandboxes terminate on success, failure, exception, and timeout;
+11. unsupported target setup fails explicitly rather than being guessed.
 
 ## 7. Concurrency model
 
@@ -186,7 +193,7 @@ Each run should retain enough structured evidence to reconstruct what happened:
 - selected source/test context metadata;
 - raw validated `MutationBatch`;
 - applied mutation diffs;
-- sandbox stdout/stderr and semantic execution outcomes;
+- bounded sandbox stdout/stderr, truncation metadata, and semantic execution outcomes;
 - selected survivor and `SurvivorAnalysis`;
 - generated `TestProposal`;
 - original-vs-mutant verification evidence;
