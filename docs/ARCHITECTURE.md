@@ -65,9 +65,14 @@ Modal bounded fan-out
                                                    v
                                           Deterministic judge
                                                    v
-                                           Hardening result
-                                                   v
-                                  Evidence/events -> API -> UI
+                                    verified candidate?
+                                      | yes
+                                      v
+                             re-score same mutation batch
+                                      v
+                         final run result + before/after score
+                                      v
+                            Evidence/events -> API -> UI
 ```
 
 ## 3. Core contracts
@@ -135,7 +140,7 @@ Required controls:
 2. reject absolute paths and traversal;
 3. exact original snippet anchor must match once;
 4. source snapshot is immutable during a run;
-5. generated tests are written only to an isolated candidate workspace;
+5. generated tests are created as new files in an allowed test directory inside an isolated candidate workspace; existing tests are not overwritten/appended;
 6. every applied change has a renderable diff;
 7. Sandboxes terminate on success, failure, exception, and timeout;
 8. unsupported target setup fails explicitly rather than being guessed.
@@ -220,6 +225,6 @@ See:
 ## 12. Implementation map
 
 - **M0 / P0 — deterministic execution foundation:** #1, #22, #4–#8
-- **M1 / P1 — closed autonomous loop:** #2, #9–#16
+- **M1 / P1 — closed autonomous loop:** #2, #9–#14, #25, #15–#16
 - **M2 / P2 — live demo and observability:** #3, #17–#20
 - **M3 / P3 — submission validation/evidence freeze:** #21, #24, #23
