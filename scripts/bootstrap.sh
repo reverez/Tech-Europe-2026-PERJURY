@@ -19,8 +19,10 @@ need git
 
 python3 - <<'PY'
 import sys
-if sys.version_info < (3, 12):
-    raise SystemExit("ERROR: Python 3.12+ is required.")
+if sys.version_info[:2] != (3, 12):
+    raise SystemExit(
+        f"ERROR: Python 3.12.x is required; found {sys.version.split()[0]}."
+    )
 print(f"Python 3.12 runtime OK: {sys.version.split()[0]}")
 PY
 
@@ -32,10 +34,7 @@ fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
 
-echo "Upgrading packaging tools..."
-python -m pip install --upgrade pip setuptools wheel
-
-echo "Installing PERJURY + dev dependencies..."
+echo "Installing pinned PERJURY + dev dependencies..."
 python -m pip install -e ".[dev]"
 
 if [ ! -f ".env" ]; then
@@ -46,14 +45,14 @@ else
 fi
 
 echo
-echo "Running deterministic local tests..."
-pytest -q
+echo "Running deterministic quality gate..."
+bash scripts/check.sh
 
 echo
 echo "Bootstrap complete."
 echo "External services are deliberately NOT invoked by bootstrap."
 echo "Next:"
-echo "  1) Complete M0 quality gate work in issue #22 (ruff + CI)."
+echo "  1) Continue M0 with issue #8 (execution taxonomy)."
 echo "  2) Put GOOGLE_API_KEY in .env, then run: python scripts/gemini_smoke.py"
 echo "  3) Authenticate Modal separately with: modal setup"
 echo "  4) Run the Modal smoke separately with: python scripts/modal_spike.py"
